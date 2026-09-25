@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAR Задание 1 - Меню столовой</title>
+    <!-- Подключаем библиотеку model-viewer от Google -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        /* Убираем отступы и растягиваем на весь экран */
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        model-viewer {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Компонент для отображения 3D и AR блюда -->
+    <model-viewer src="dish.glb"
+                  ios-src="dish.usdz"
+                  ar
+                  ar-modes="webxr scene-viewer quick-look"
+                  camera-controls
+                  environment-image="aircraft_workshop_01_1k.hdr"
+                  shadow-intensity="1">
+        <!-- Кнопка для запуска AR -->
+        <button slot="ar-button" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 12px 24px; font-size: 16px; border-radius: 8px; background: #ea580c; color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-weight: bold;">
+            Посмотреть блюдо на столе (AR)
+        </button>
+    </model-viewer>
+</body>
+</html>

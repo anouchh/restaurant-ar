@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebAR - Проект Ресторан</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 30px 16px 50px;
+    }
+    .wrap {
+      max-width: 560px;
+      width: 100%;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
+    p.desc {
+      color: #64748b;
+      font-size: 14px;
+    }
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .item {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .item-num {
+      font-size: 12px;
+      font-weight: 700;
+      color: #ea580c;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .item h2 {
+      font-size: 17px;
+      margin-bottom: 4px;
+      color: #1e293b;
+    }
+    .item p {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+    .btns {
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 9px 15px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn-main {
+      background: #ea580c;
+      color: #ffffff;
+    }
+    .btn-main:hover {
+      background: #c2410c;
+    }
+    .btn-sub {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-sub:hover {
+      background: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>WebAR в ресторане</h1>
+      <p class="desc">Приложения дополненной реальности (Задания 1–4)</p>
+    </header>
+
+    <div class="list">
+      <!-- Задание 1 -->
+      <div class="item">
+        <div class="item-num">Задание 1</div>
+        <h2>Блюдо ресторана на столе (&lt;model-viewer&gt;)</h2>
+        <p>Размещение 3D-модели блюда на поверхности стола для просмотра размера порции.</p>
+        <div class="btns">
+          <a href="task1-model-viewer/index.html" class="btn btn-main">Открыть Задание 1 &rarr;</a>
+        </div>
+      </div>
+
+      <!-- Задание 2 -->
+      <div class="item">
+        <div class="item-num">Задание 2</div>
+        <h2>Меню ресторана (MindAR Image Tracking)</h2>
+        <p>Наведите камеру на маркер меню — над ним появится 3D-блюдо.</p>
+        <div class="btns">
+          <a href="task2-mindar/index.html" class="btn btn-main">Открыть Задание 2 &rarr;</a>
+          <a href="marker.png" target="_blank" class="btn btn-sub">Маркер меню</a>
+        </div>
+      </div>
+
+      <!-- Задание 3 -->
+      <div class="item">
+        <div class="item-num">Задание 3</div>
+        <h2>Колпак шеф-повара (MindAR Face Tracking)</h2>
+        <p>Примерка белого поварского колпака на голове через селфи-камеру.</p>
+        <div class="btns">
+          <a href="task3-face-tracking/index.html" class="btn btn-main">Открыть Задание 3 &rarr;</a>
+        </div>
+      </div>
+
+      <!-- Задание 4 -->
+      <div class="item">
+        <div class="item-num">Задание 4</div>
+        <h2>Размещение столика через Hit-Test (Three.js)</h2>
+        <p>Поиск пола лучом камеры и установка круглого столика ресторана по нажатию на экран.</p>
+        <div class="btns">
+          <a href="task4-threejs-hittest/index.html" class="btn btn-main">Открыть Задание 4 &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

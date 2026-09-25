@@ -1,0 +1,11 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Temporary Word & Office files
+~$*
+*.tmp
+
+# Local certificates (for security)
+cert.pem
+key.pem

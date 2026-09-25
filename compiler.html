@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MindAR Image Target Compiler</title>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js" type="module"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: rgba(255, 255, 255, 0.1);
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+    }
+
+    .container {
+      max-width: 640px;
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 14px;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .dropzone {
+      border: 2px dashed rgba(56, 189, 248, 0.4);
+      border-radius: 16px;
+      padding: 40px 20px;
+      text-align: center;
+      background: rgba(56, 189, 248, 0.03);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .dropzone input {
+      display: none;
+    }
+
+    .dropzone svg {
+      width: 48px;
+      height: 48px;
+      stroke: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .dropzone p {
+      font-size: 15px;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+
+    .dropzone span {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .preview-section {
+      margin-top: 24px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .preview-img {
+      max-width: 220px;
+      max-height: 220px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .progress-bar-wrap {
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #38bdf8, #10b981);
+      transition: width 0.2s ease;
+    }
+
+    .compile-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #2563eb, #06b6d4);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .compile-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .compile-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status-log {
+      font-size: 13px;
+      color: var(--accent);
+      margin-top: 10px;
+      text-align: center;
+      min-height: 20px;
+    }
+
+    .tips-box {
+      margin-top: 28px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .tips-box h4 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #38bdf8;
+    }
+
+    .tips-box ul {
+      padding-left: 18px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .online-link {
+      margin-top: 14px;
+      display: block;
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back-btn">&larr; Вернуться в главное меню</a>
+    <h1>Компилятор маркеров MindAR</h1>
+    <p class="subtitle">Скомпилируйте собственное изображение (PNG/JPG) в оптимизированный бинарный таргет-файл <code>targets.mind</code> для дополненной реальности.</p>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="file-input" accept="image/png, image/jpeg, image/webp">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p>Перетащите изображение маркера сюда или нажмите для выбора</p>
+      <span>Поддерживаются форматы PNG, JPG (рекомендуется высокое разрешение)</span>
+    </div>
+
+    <div class="preview-section" id="preview-section">
+      <img id="preview-img" class="preview-img" src="" alt="Превью маркера">
+      <button id="compile-btn" class="compile-btn">Скомпилировать в targets.mind</button>
+      
+      <div class="progress-bar-wrap" id="progress-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      
+      <div class="status-log" id="status-log"></div>
+    </div>
+
+    <div class="tips-box">
+      <h4>Советы для идеального маркера AR:</h4>
+      <ul>
+        <li>Используйте изображения с большим количеством контрастных деталей и углов (геометрия, иллюстрации, текст).</li>
+        <li>Избегайте однотонных заливок, размытых фото и повторяющихся текстур.</li>
+        <li>Также доступен официальный онлайн компилятор MindAR:
+          <a class="online-link" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" rel="noopener">
+            Открыть официальный компилятор MindAR (hiukim.github.io) &rarr;
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Compiler } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    const previewSection = document.getElementById('preview-section');
+    const previewImg = document.getElementById('preview-img');
+    const compileBtn = document.getElementById('compile-btn');
+    const progressWrap = document.getElementById('progress-wrap');
+    const progressBar = document.getElementById('progress-bar');
+    const statusLog = document.getElementById('status-log');
+
+    let selectedFile = null;
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Пожалуйста, выберите файл изображения (PNG, JPG)!');
+        return;
+      }
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        previewSection.style.display = 'flex';
+        statusLog.textContent = `Выбран файл: ${file.name} (${(file.size / 1024).toFixed(1)} КБ)`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    compileBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      compileBtn.disabled = true;
+      progressWrap.style.display = 'block';
+      progressBar.style.width = '0%';
+      statusLog.textContent = 'Инициализация компилятора...';
+
+      try {
+        const img = new Image();
+        img.src = previewImg.src;
+        await new Promise(resolve => img.onload = resolve);
+
+        const compiler = new Compiler();
+        statusLog.textContent = 'Извлечение особых точек и масштабов (Feature extraction)...';
+
+        const dataList = await compiler.compileImageTargets([img], (progress) => {
+          const pct = Math.round(progress);
+          progressBar.style.width = pct + '%';
+          statusLog.textContent = `Компиляция: ${pct}%...`;
+        });
+
+        statusLog.textContent = 'Экспорт бинарных данных targets.mind...';
+        const exportedBuffer = await compiler.exportData();
+
+        // Download generated file
+        const blob = new Blob([exportedBuffer]);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'targets.mind';
+        a.click();
+
+        statusLog.textContent = 'Успешно! Файл targets.mind скачан. Поместите его в папку task2-mindar/assets/';
+      } catch (err) {
+        console.error(err);
+        statusLog.textContent = 'Ошибка компиляции: ' + err.message + '. Попробуйте официальный онлайн-компилятор по ссылке ниже.';
+      } finally {
+        compileBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

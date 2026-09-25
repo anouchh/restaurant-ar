@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WebAR Задание 4 - Размещение столика</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 15px;
+            z-index: 10;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Наведите камеру на пол и коснитесь экрана, чтобы поставить столик</div>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+        import { ARButton } from 'https://unpkg.com/three@0.160.0/examples/jsm/webxr/ARButton.js';
+
+        let camera, scene, renderer, controller, reticle;
+        let hitTestSource = null, hitTestSourceRequested = false;
+
+        init();
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+            // Освещение
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 2.5);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffeedd, 2.0);
+            dirLight.position.set(1, 2, 1);
+            scene.add(dirLight);
+
+            // WebGL рендерер
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Кнопка запуска AR с hit-test
+            document.body.appendChild(ARButton.createButton(renderer, {
+                requiredFeatures: ['hit-test']
+            }));
+
+            // Модель круглого столика ресторана
+            const table = new THREE.Group();
+            
+            // Столешница
+            const topMesh = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.25, 0.25, 0.02, 32),
+                new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.3 })
+            );
+            topMesh.position.y = 0.45;
+            table.add(topMesh);
+
+            // Ножка столика
+            const legMesh = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.025, 0.025, 0.44, 16),
+                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
+            );
+            legMesh.position.y = 0.22;
+            table.add(legMesh);
+
+            // Основание столика
+            const baseMesh = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.18, 0.18, 0.015, 32),
+                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
+            );
+            baseMesh.position.y = 0.01;
+            table.add(baseMesh);
+
+            // Размещение столика по тапу
+            function onSelect() {
+                if (reticle.visible) {
+                    const newTable = table.clone();
+                    reticle.matrix.decompose(newTable.position, newTable.quaternion, newTable.scale);
+                    scene.add(newTable);
+                }
+            }
+
+            controller = renderer.xr.getController(0);
+            controller.addEventListener('select', onSelect);
+            scene.add(controller);
+
+            // Кольцо-прицел (reticle)
+            reticle = new THREE.Mesh(
+                new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xea580c })
+            );
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
+
+            renderer.setAnimationLoop(animate);
+        }
+
+        // Анимация и поиск плоскости
+        function animate(timestamp, frame) {
+            if (frame) {
+                const refSpace = renderer.xr.getReferenceSpace();
+                const session = renderer.xr.getSession();
+
+                if (!hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then(space => {
+                        session.requestHitTestSource({ space }).then(source => hitTestSource = source);
+                    });
+                    hitTestSourceRequested = true;
+                }
+
+                if (hitTestSource) {
+                    const results = frame.getHitTestResults(hitTestSource);
+                    if (results.length > 0) {
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(results[0].getPose(refSpace).transform.matrix);
+                    } else {
+                        reticle.visible = false;
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
