@@ -3,85 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WebAR Задание 4 - Размещение столика (Hit-Test)</title>
+    <title>WebAR Задание 4 - Размещение столика</title>
     <style>
         body {
             margin: 0;
-            background-color: #0f172a;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            font-size: 14px;
-            line-height: 22px;
             overflow: hidden;
-            overscroll-behavior: none;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-
         #info {
             position: absolute;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 32px);
-            max-width: 440px;
-            padding: 10px 16px;
-            background: rgba(15, 23, 42, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 14px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            top: 20px;
+            width: 100%;
             text-align: center;
-            user-select: none;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10;
             pointer-events: none;
-            z-index: 100;
-            backdrop-filter: blur(8px);
-        }
-
-        #info .title {
-            font-weight: 700;
-            color: #ea580c;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
-        }
-
-        #info .desc {
-            font-size: 13px;
-            color: #f1f5f9;
-        }
-
-        /* Стилизация стандартной кнопки ARButton Three.js под дизайн проекта */
-        #ARButton {
-            position: absolute !important;
-            bottom: 28px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            padding: 14px 28px !important;
-            border: none !important;
-            border-radius: 28px !important;
-            background: #ea580c !important;
-            color: #ffffff !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-            font-size: 15px !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.5px !important;
-            box-shadow: 0 6px 20px rgba(234, 88, 12, 0.45) !important;
-            opacity: 1.0 !important;
-            cursor: pointer !important;
-            outline: none !important;
-            z-index: 9999 !important;
-            transition: transform 0.15s, background 0.15s !important;
-        }
-
-        #ARButton:active {
-            transform: translateX(-50%) scale(0.96) !important;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
         }
     </style>
 </head>
 <body>
-    <div id="info">
-        <div class="title">Задание 4: WebXR Hit-Test</div>
-        <div id="infoDesc" class="desc">Столик ресторана • Нажмите «START AR» внизу для запуска камеры</div>
-    </div>
+    <div id="info">Наведите камеру на пол и коснитесь экрана, чтобы поставить столик</div>
 
     <!-- Подключение Three.js и официального модуля ARButton -->
     <script type="importmap">
@@ -103,50 +48,35 @@
         let hitTestSource = null;
         let hitTestSourceRequested = false;
 
-        let previewTable;
-        const spawnedTables = [];
-        const infoDesc = document.getElementById('infoDesc');
-
         init();
 
-        // Построение 3D-модели круглого столика ресторана
-        function createTableMesh() {
+        // 3D-модель круглого столика ресторана
+        function createTable() {
             const table = new THREE.Group();
 
-            // Деревянная столешница
-            const topGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.025, 32);
-            const topMat = new THREE.MeshStandardMaterial({ 
-                color: 0x9a5b28, 
-                roughness: 0.4, 
-                metalness: 0.05 
-            });
-            const top = new THREE.Mesh(topGeo, topMat);
-            top.position.y = 0.48;
+            // Столешница
+            const top = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.25, 0.25, 0.02, 32),
+                new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.3 })
+            );
+            top.position.y = 0.45;
             table.add(top);
 
-            // Металлическая центральная ножка
-            const legGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.46, 16);
-            const legMat = new THREE.MeshStandardMaterial({ 
-                color: 0x222222, 
-                roughness: 0.2, 
-                metalness: 0.8 
-            });
-            const leg = new THREE.Mesh(legGeo, legMat);
-            leg.position.y = 0.24;
+            // Ножка столика
+            const leg = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.025, 0.025, 0.44, 16),
+                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
+            );
+            leg.position.y = 0.22;
             table.add(leg);
 
-            // Металлическое основание стола
-            const baseGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.015, 32);
-            const base = new THREE.Mesh(baseGeo, legMat);
+            // Основание столика
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.18, 0.18, 0.015, 32),
+                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
+            );
             base.position.y = 0.01;
             table.add(base);
-
-            // Вазочка с цветком в центре столика
-            const vaseGeo = new THREE.CylinderGeometry(0.025, 0.015, 0.07, 16);
-            const vaseMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
-            const vase = new THREE.Mesh(vaseGeo, vaseMat);
-            vase.position.y = 0.53;
-            table.add(vase);
 
             return table;
         }
@@ -154,20 +84,17 @@
         function init() {
             scene = new THREE.Scene();
 
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 25);
-            camera.position.set(0, 0.35, 0.9);
-            camera.lookAt(0, 0.25, 0);
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
             // Освещение сцены
-            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbdd, 2.5);
-            hemiLight.position.set(0.5, 1, 0.25);
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 2.5);
             scene.add(hemiLight);
 
             const dirLight = new THREE.DirectionalLight(0xffeedd, 2.0);
-            dirLight.position.set(1.5, 3, 2);
+            dirLight.position.set(1, 2, 1);
             scene.add(dirLight);
 
-            // WebGL рендерер с включенным WebXR
+            // Рендерер с поддержкой WebXR
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -175,68 +102,17 @@
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Кнопка входа в AR (официальный модуль Three.js)
-            if ('xr' in navigator) {
-                const arBtn = ARButton.createButton(renderer, { 
-                    requiredFeatures: ['hit-test'] 
-                });
-                document.body.appendChild(arBtn);
-            } else {
-                // Если WebXR отсутствует (например, Apple Safari на iOS)
-                const desc = document.getElementById('infoDesc');
-                desc.innerHTML = 'Столик ресторана • <b>WebXR не поддерживается в iOS Safari</b><br><span style="color:#fdba74">Стандарт WebXR Hit-Test поддерживается на Android (Chrome)</span>';
+            // Официальная кнопка Three.js для входа в AR
+            document.body.appendChild(ARButton.createButton(renderer, {
+                requiredFeatures: ['hit-test']
+            }));
 
-                const fallback = document.createElement('div');
-                fallback.style.cssText = 'position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 400px; display: flex; flex-direction: column; gap: 8px; z-index: 1000;';
-                fallback.innerHTML = `
-                    <div style="background: rgba(15,23,42,0.92); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 14px; text-align: center; font-size: 12px; line-height: 1.4; color: #cbd5e1; backdrop-filter: blur(8px);">
-                        ℹ️ <b>Для пользователей iPhone (iOS):</b> Apple не реализует стандарт WebXR в Safari. Для сдачи работы преподаватели тестируют WebXR на Android (Chrome) или через WebXR Emulator.
-                    </div>
-                    <a href="../task1-model-viewer/index.html" style="display: block; text-align: center; padding: 12px 20px; background: #ea580c; color: #fff; text-decoration: none; border-radius: 25px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 15px rgba(234,88,12,0.4);">
-                        Посмотреть AR на iPhone (Задание 1: Quick Look) &rarr;
-                    </a>
-                `;
-                document.body.appendChild(fallback);
-            }
-
-            // Вращение столика пальцем на экране
-            let isDragging = false, prevX = 0;
-            window.addEventListener('pointerdown', (e) => {
-                isDragging = true;
-                prevX = e.clientX;
-            });
-            window.addEventListener('pointermove', (e) => {
-                if (isDragging && previewTable && previewTable.visible) {
-                    const dx = e.clientX - prevX;
-                    previewTable.rotation.y += dx * 0.01;
-                    prevX = e.clientX;
-                }
-            });
-            window.addEventListener('pointerup', () => { isDragging = false; });
-
-            // Столик для 3D предпросмотра до старта AR
-            previewTable = createTableMesh();
-            previewTable.position.set(0, 0, 0);
-            scene.add(previewTable);
-
-            // Кольцо-прицел (reticle) для Hit-Test на полу
-            reticle = new THREE.Mesh(
-                new THREE.RingGeometry(0.14, 0.18, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial({ color: 0xea580c })
-            );
-            reticle.matrixAutoUpdate = false;
-            reticle.visible = false;
-            scene.add(reticle);
-
-            // Размещение столика по тапу на экран в AR
+            // Размещение столика по касанию экрана (событие select)
             function onSelect() {
                 if (reticle.visible) {
-                    const newTable = createTableMesh();
-                    reticle.matrix.decompose(newTable.position, newTable.quaternion, newTable.scale);
-                    scene.add(newTable);
-                    spawnedTables.push(newTable);
-
-                    infoDesc.innerHTML = '✅ Столик установлен на полу!<br>Коснитесь экрана ещё раз, чтобы поставить ещё один';
+                    const table = createTable();
+                    reticle.matrix.decompose(table.position, table.quaternion, table.scale);
+                    scene.add(table);
                 }
             }
 
@@ -244,12 +120,14 @@
             controller.addEventListener('select', onSelect);
             scene.add(controller);
 
-            // Дублирующий обработчик касания для максимальной совместимости на смартфонах
-            window.addEventListener('touchstart', (e) => {
-                if (renderer.xr.isPresenting && e.target.tagName !== 'BUTTON') {
-                    onSelect();
-                }
-            });
+            // Кольцо-прицел (reticle) для поиска пола через hit-test
+            reticle = new THREE.Mesh(
+                new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xea580c })
+            );
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
 
             window.addEventListener('resize', onWindowResize);
         }
@@ -260,65 +138,38 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // Главный цикл рендеринга и поиска поверхности
+        // Цикл анимации и hit-test
         function animate(timestamp, frame) {
             if (frame) {
-                // Если AR-сессия активна — скрываем столик предпросмотра
-                if (previewTable && previewTable.visible) {
-                    previewTable.visible = false;
-                }
-
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
-                // Однократный запрос источника Hit-Test для луча камеры
-                if (hitTestSourceRequested === false) {
+                if (!hitTestSourceRequested) {
                     session.requestReferenceSpace('viewer').then(function (referenceSpace) {
                         session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
                             hitTestSource = source;
-                        }).catch(function (err) {
-                            console.warn('Hit test source error:', err);
                         });
-                    }).catch(function (err) {
-                        console.warn('Viewer reference space error:', err);
                     });
 
                     session.addEventListener('end', function () {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
-                        reticle.visible = false;
-                        if (previewTable) previewTable.visible = true;
-                        infoDesc.innerHTML = 'Столик ресторана • Нажмите «START AR» внизу для запуска камеры';
                     });
 
                     hitTestSourceRequested = true;
                 }
 
-                // Получение результатов пересечения с полом в текущем кадре
-                if (hitTestSource && referenceSpace) {
+                if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
 
                     if (hitTestResults.length > 0) {
                         const hit = hitTestResults[0];
-                        const pose = hit.getPose(referenceSpace);
-
-                        if (pose) {
-                            reticle.visible = true;
-                            reticle.matrix.fromArray(pose.transform.matrix);
-                            if (!infoDesc.innerHTML.includes('установлен')) {
-                                infoDesc.innerHTML = '✅ Поверхность пола обнаружена!<br>Коснитесь экрана, чтобы зафиксировать столик';
-                            }
-                        }
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
                         reticle.visible = false;
-                        if (!infoDesc.innerHTML.includes('установлен')) {
-                            infoDesc.innerHTML = '🔍 Медленно перемещайте камеру по полу для поиска поверхности...';
-                        }
                     }
                 }
-            } else if (previewTable && previewTable.visible) {
-                // Плавное вращение столика в 2D-режиме предпросмотра
-                previewTable.rotation.y += 0.008;
             }
 
             renderer.render(scene, camera);
