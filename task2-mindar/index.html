@@ -2,19 +2,38 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Задание 2 - AR Меню столовой</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WebAR Задание 2 - AR Меню ресторана</title>
     <!-- Подключение библиотек A-Frame и MindAR Image Tracking через CDN -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-        body {
+        html, body {
+            position: relative;
             margin: 0;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
+        }
+        #info-overlay {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 9999;
+            pointer-events: none;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
         }
     </style>
 </head>
 <body>
+    <div id="info-overlay">Наведите камеру на маркер меню ресторана</div>
+
     <!-- Инициализация AR-сцены и привязка файла маркера меню -->
     <a-scene mindar-image="imageTargetSrc: ./targets.mind;"
              color-space="sRGB"
@@ -35,7 +54,7 @@
             <a-light type="ambient" color="#FFF" intensity="0.9"></a-light>
             <a-light type="directional" position="1 2 1" intensity="1.1"></a-light>
 
-            <!-- 3D-модель горячего блюда столовой -->
+            <!-- 3D-модель горячего блюда ресторана -->
             <a-gltf-model 
                 src="#dishModel"
                 rotation="0 0 0"
