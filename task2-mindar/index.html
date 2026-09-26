@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>WebAR Задание 2 - AR Меню ресторана</title>
-    <!-- Подключение библиотек A-Frame и MindAR Image Tracking через CDN -->
+    <!-- Подключение A-Frame и MindAR Image Tracking -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
@@ -14,54 +14,194 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-        #info-overlay {
+
+        /* Верхняя панель состояния */
+        .badge {
             position: absolute;
-            top: 15px;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            z-index: 1000;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .badge.searching {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .badge.found {
+            background: rgba(22, 101, 52, 0.92);
+            border: 1px solid rgba(74, 222, 128, 0.5);
+        }
+
+        /* Кнопка показа маркера снизу */
+        #markerBtn {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            z-index: 1000;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Модальное окно просмотра маркера */
+        #markerModal {
+            display: none;
+            position: fixed;
+            top: 0;
             left: 0;
             width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #markerModal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            max-width: 420px;
+            width: 100%;
             text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+
+        .modal-card h3 {
+            margin: 0 0 8px;
+            font-size: 17px;
+            color: #0f172a;
+        }
+
+        .modal-card p {
+            font-size: 13px;
+            color: #64748b;
+            margin: 0 0 14px;
+            line-height: 1.4;
+        }
+
+        .modal-card img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 16px;
+        }
+
+        .modal-card button {
+            background: #ea580c;
             color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            border: none;
+            padding: 9px 24px;
+            border-radius: 8px;
             font-size: 14px;
-            font-weight: 500;
-            z-index: 9999;
-            pointer-events: none;
-            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+            font-weight: 600;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="info-overlay">Наведите камеру на маркер меню ресторана</div>
+    <!-- Статусный бейдж подсказки -->
+    <div id="statusBadge" class="badge searching">🔍 Наведите камеру на маркер меню</div>
 
-    <!-- Инициализация AR-сцены и привязка файла маркера меню -->
-    <a-scene mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001;"
+    <!-- Кнопка вызова маркера для удобства тестирования -->
+    <button id="markerBtn" type="button">📄 Показать маркер</button>
+
+    <!-- Модальное окно с маркером -->
+    <div id="markerModal">
+        <div class="modal-card">
+            <h3>Маркер меню ресторана</h3>
+            <p>Откройте эту карточку на мониторе компьютера или распечатайте и наведите камеру смартфона:</p>
+            <img src="../marker.png" alt="Маркер меню">
+            <button id="closeModalBtn" type="button">Понятно, закрыть</button>
+        </div>
+    </div>
+
+    <!-- AR-сцена MindAR с быстрым откликом трекинга -->
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind;"
              color-space="sRGB"
-             renderer="colorManagement: true, physicallyCorrectLights"
+             renderer="colorManagement: true, physicallyCorrectLights: false"
              vr-mode-ui="enabled: false"
              device-orientation-permission-ui="enabled: false">
              
         <a-assets>
-            <!-- Предзагрузка 3D-модели блюда -->
             <a-asset-item id="dishModel" src="./model.glb"></a-asset-item>
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <!-- Трекер маркера меню -->
-        <a-entity mindar-image-target="targetIndex: 0">
+        <a-entity id="menuTarget" mindar-image-target="targetIndex: 0">
             <!-- Освещение сцены -->
-            <a-light type="ambient" color="#FFF" intensity="1.0"></a-light>
-            <a-light type="directional" position="1 2 2" intensity="1.4"></a-light>
+            <a-light type="ambient" color="#ffffff" intensity="1.2"></a-light>
+            <a-light type="directional" position="1 2 2" intensity="1.5"></a-light>
 
-            <!-- 3D-модель горячего блюда ресторана (повернута плашмя на маркер) -->
-            <a-gltf-model 
-                src="#dishModel"
-                rotation="90 0 0"
-                position="0 0 0.05"
-                scale="0.85 0.85 0.85">
-            </a-gltf-model>
+            <!-- Легкая полупрозрачная рамка маркера для подтверждения фиксации -->
+            <a-plane position="0 0 0.005" width="1" height="0.552" material="color: #ea580c; opacity: 0.15; transparent: true;"></a-plane>
+
+            <!-- 3D-модель горячего блюда на маркере с плавным вращением -->
+            <a-entity position="0 0 0.08" 
+                      rotation="75 0 0" 
+                      scale="0.85 0.85 0.85"
+                      animation="property: rotation; to: 75 360 0; loop: true; dur: 12000; easing: linear">
+                <a-gltf-model src="#dishModel"></a-gltf-model>
+            </a-entity>
         </a-entity>
     </a-scene>
+
+    <script>
+        const target = document.querySelector('#menuTarget');
+        const badge = document.querySelector('#statusBadge');
+        const markerBtn = document.querySelector('#markerBtn');
+        const markerModal = document.querySelector('#markerModal');
+        const closeModalBtn = document.querySelector('#closeModalBtn');
+
+        // Обработка обнаружения маркера в кадре
+        target.addEventListener('targetFound', () => {
+            badge.textContent = '✅ Блюдо найдено: Шашлык фирменный (650 ₽)';
+            badge.className = 'badge found';
+        });
+
+        // Обработка потери маркера из кадра
+        target.addEventListener('targetLost', () => {
+            badge.textContent = '🔍 Наведите камеру на маркер меню';
+            badge.className = 'badge searching';
+        });
+
+        // Открытие / закрытие окна маркера
+        markerBtn.addEventListener('click', () => {
+            markerModal.classList.add('active');
+        });
+        closeModalBtn.addEventListener('click', () => {
+            markerModal.classList.remove('active');
+        });
+    </script>
 </body>
 </html>
