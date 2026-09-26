@@ -88,6 +88,7 @@
         let hitTestSource = null;
         let hitTestSourceRequested = false;
         let isCameraAR = false;
+        const spawnedTables = [];
 
         const info = document.getElementById('info');
         const startBtn = document.getElementById('startArBtn');
@@ -95,40 +96,44 @@
 
         init();
 
-        // Построение 3D-модели круглого столика ресторана
+        // Построение 3D-модели столика ресторана (основание снизу, столешница сверху)
         function createTable() {
             const table = new THREE.Group();
 
-            // Столешница
-            const top = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.25, 0.25, 0.025, 32),
-                new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.35 })
-            );
-            top.position.y = 0.45;
-            table.add(top);
-
-            // Ножка столика
-            const leg = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.025, 0.025, 0.44, 16),
-                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
-            );
-            leg.position.y = 0.22;
-            table.add(leg);
-
-            // Основание столика
-            const base = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.18, 0.18, 0.015, 32),
-                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
-            );
+            // 1. Металлическое основание на полу
+            const baseGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.02, 32);
+            const metalMat = new THREE.MeshStandardMaterial({ 
+                color: 0x222222, 
+                metalness: 0.8, 
+                roughness: 0.2 
+            });
+            const base = new THREE.Mesh(baseGeo, metalMat);
             base.position.y = 0.01;
             table.add(base);
 
-            // Вазочка на столике
+            // 2. Металлическая центральная ножка
+            const legGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.46, 16);
+            const leg = new THREE.Mesh(legGeo, metalMat);
+            leg.position.y = 0.24;
+            table.add(leg);
+
+            // 3. Круглая деревянная столешница сверху
+            const topGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.025, 32);
+            const woodMat = new THREE.MeshStandardMaterial({ 
+                color: 0x9a5b28, 
+                roughness: 0.35, 
+                metalness: 0.05 
+            });
+            const top = new THREE.Mesh(topGeo, woodMat);
+            top.position.y = 0.48;
+            table.add(top);
+
+            // 4. Белая вазочка с цветком на столешнице
             const vase = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.025, 0.015, 0.06, 16),
                 new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 })
             );
-            vase.position.y = 0.49;
+            vase.position.y = 0.52;
             table.add(vase);
 
             return table;
@@ -138,6 +143,8 @@
             scene = new THREE.Scene();
 
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+            camera.position.set(0, 0, 0);
+            camera.rotation.set(-0.35, 0, 0); // Естественный угол взгляда на пол
 
             // Освещение сцены
             const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 2.5);
@@ -147,7 +154,7 @@
             dirLight.position.set(1, 2, 1);
             scene.add(dirLight);
 
-            // Рендерер с поддержкой WebXR и прозрачности для камеры
+            // Рендерер с поддержкой WebXR и прозрачности для видеофона
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -155,7 +162,7 @@
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Кольцо-прицел (reticle) для поиска пола через hit-test
+            // Оранжевое кольцо-прицел (reticle)
             reticle = new THREE.Mesh(
                 new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
                 new THREE.MeshBasicMaterial({ color: 0xea580c })
@@ -164,16 +171,31 @@
             reticle.visible = false;
             scene.add(reticle);
 
-            // Размещение столика в точке прицела
+            // Размещение столика вертикально на полу
             function placeTable() {
                 const table = createTable();
-                if (reticle.visible) {
-                    reticle.matrix.decompose(table.position, table.quaternion, table.scale);
+
+                if (renderer.xr && renderer.xr.isPresenting && reticle.visible) {
+                    const pos = new THREE.Vector3();
+                    const quat = new THREE.Quaternion();
+                    const sca = new THREE.Vector3();
+                    reticle.matrix.decompose(pos, quat, sca);
+
+                    table.position.copy(pos);
+                    // Фиксируем столик строго вертикально (без переворота)
+                    const euler = new THREE.Euler().setFromQuaternion(quat, 'YXZ');
+                    table.rotation.set(0, euler.y, 0);
                 } else {
-                    table.position.set(0, -0.4, -1.0).applyMatrix4(camera.matrixWorld);
+                    // Камерный режим AR (iOS): ставим столик прямо на пол
+                    const count = spawnedTables.length;
+                    const offsetX = (count === 0) ? 0 : ((count % 2 === 0 ? 1 : -1) * Math.ceil(count / 2) * 0.5);
+                    table.position.set(offsetX, -0.6, -1.2);
+                    table.rotation.set(0, 0, 0);
                 }
+
                 scene.add(table);
-                info.innerHTML = '✅ Столик установлен на полу!<br>Коснитесь экрана ещё раз, чтобы поставить ещё один';
+                spawnedTables.push(table);
+                info.innerHTML = '✅ Столик установлен на полу!<br>Коснитесь экрана ещё раз, чтобы поставить следующий';
             }
 
             // WebXR контроллер для тапа в режиме immersive-ar
@@ -181,7 +203,7 @@
             controller.addEventListener('select', placeTable);
             scene.add(controller);
 
-            // Обработчик касания экрана для мобильных устройств (iOS / Android)
+            // Обработчик касания экрана для мобильных устройств
             window.addEventListener('touchstart', (e) => {
                 if (isCameraAR || renderer.xr.isPresenting) {
                     if (e.target.tagName !== 'BUTTON') {
@@ -192,7 +214,7 @@
 
             // Обработка клика по кнопке START AR
             startBtn.addEventListener('click', async () => {
-                // 1. Попытка нативного запуска WebXR (Android Chrome)
+                // 1. Попытка запуска WebXR (Android Chrome)
                 if ('xr' in navigator) {
                     try {
                         const supported = await navigator.xr.isSessionSupported('immersive-ar');
@@ -214,7 +236,7 @@
                     }
                 }
 
-                // 2. Универсальный запуск камеры для iOS (iPhone Safari) и других устройств
+                // 2. Универсальный запуск камеры для iOS (iPhone Safari)
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: { facingMode: { ideal: 'environment' } }
@@ -226,32 +248,12 @@
                     isCameraAR = true;
                     reticle.visible = true;
 
-                    // Отслеживание гироскопа для поворота виртуальной камеры
-                    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                        try {
-                            const perm = await DeviceOrientationEvent.requestPermission();
-                            if (perm === 'granted') {
-                                window.addEventListener('deviceorientation', handleOrientation);
-                            }
-                        } catch (err) {}
-                    } else if (window.DeviceOrientationEvent) {
-                        window.addEventListener('deviceorientation', handleOrientation);
-                    }
-
                     info.innerHTML = '✅ Камера активна. Коснитесь экрана, чтобы поставить столик!';
                 } catch (err) {
                     console.error('Ошибка доступа к камере:', err);
                     info.innerHTML = '⚠️ Предоставьте доступ к камере в настройках браузера';
                 }
             });
-
-            function handleOrientation(event) {
-                if (!isCameraAR) return;
-                const alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
-                const beta = event.beta ? THREE.MathUtils.degToRad(event.beta - 45) : 0;
-                const gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
-                camera.rotation.set(beta, gamma, alpha, 'YXZ');
-            }
 
             window.addEventListener('resize', onWindowResize);
         }
@@ -265,7 +267,7 @@
         // Цикл анимации и hit-test
         function animate(timestamp, frame) {
             if (frame) {
-                // Обработка нативного WebXR hit-test
+                // Обработка WebXR hit-test
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
@@ -288,10 +290,10 @@
                     }
                 }
             } else if (isCameraAR) {
-                // Камерный режим (iOS / универсальный)
+                // Камерный режим (iOS): кольцо-прицел лежит горизонтально на полу
                 reticle.visible = true;
-                const targetPos = new THREE.Vector3(0, -0.4, -1.0).applyMatrix4(camera.matrixWorld);
-                reticle.matrix.makeTranslation(targetPos.x, targetPos.y, targetPos.z);
+                reticle.matrix.makeRotationX(-Math.PI / 2);
+                reticle.matrix.setPosition(0, -0.6, -1.2);
             }
 
             renderer.render(scene, camera);
