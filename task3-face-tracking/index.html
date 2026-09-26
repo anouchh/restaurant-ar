@@ -37,23 +37,23 @@
     <!-- Инициализация AR-сцены с Face Tracking -->
     <a-scene mindar-face vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
-            <!-- 3D-модель колпака шеф-повара -->
+            <!-- Высокая реалистичная 3D-модель колпака шеф-повара -->
             <a-asset-item id="hatModel" src="./chef_hat.glb"></a-asset-item>
         </a-assets>
 
         <a-camera active="false" position="0 0 0"></a-camera>
 
         <!-- Освещение сцены -->
-        <a-light type="ambient" color="#FFFFFF" intensity="0.9"></a-light>
-        <a-light type="directional" position="0 2 1" intensity="1.2"></a-light>
+        <a-light type="ambient" color="#FFFFFF" intensity="1.0"></a-light>
+        <a-light type="directional" position="0 2 1.5" intensity="1.3"></a-light>
 
         <!-- Точка 10 — верх лба / макушка головы для головных уборов -->
         <a-entity mindar-face-target="anchorIndex: 10">
             <a-gltf-model 
                 src="#hatModel" 
-                rotation="0 0 0" 
-                position="0 0.15 -0.05" 
-                scale="0.35 0.35 0.35">
+                rotation="-6 0 0" 
+                position="0 -0.02 -0.08" 
+                scale="1.0 1.0 1.0">
             </a-gltf-model>
         </a-entity>
     </a-scene>
