@@ -176,10 +176,43 @@
             document.body.appendChild(renderer.domElement);
 
             // Кнопка входа в AR (официальный модуль Three.js)
-            const arBtn = ARButton.createButton(renderer, { 
-                requiredFeatures: ['hit-test'] 
+            if ('xr' in navigator) {
+                const arBtn = ARButton.createButton(renderer, { 
+                    requiredFeatures: ['hit-test'] 
+                });
+                document.body.appendChild(arBtn);
+            } else {
+                // Если WebXR отсутствует (например, Apple Safari на iOS)
+                const desc = document.getElementById('infoDesc');
+                desc.innerHTML = 'Столик ресторана • <b>WebXR не поддерживается в iOS Safari</b><br><span style="color:#fdba74">Стандарт WebXR Hit-Test поддерживается на Android (Chrome)</span>';
+
+                const fallback = document.createElement('div');
+                fallback.style.cssText = 'position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 400px; display: flex; flex-direction: column; gap: 8px; z-index: 1000;';
+                fallback.innerHTML = `
+                    <div style="background: rgba(15,23,42,0.92); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 14px; text-align: center; font-size: 12px; line-height: 1.4; color: #cbd5e1; backdrop-filter: blur(8px);">
+                        ℹ️ <b>Для пользователей iPhone (iOS):</b> Apple не реализует стандарт WebXR в Safari. Для сдачи работы преподаватели тестируют WebXR на Android (Chrome) или через WebXR Emulator.
+                    </div>
+                    <a href="../task1-model-viewer/index.html" style="display: block; text-align: center; padding: 12px 20px; background: #ea580c; color: #fff; text-decoration: none; border-radius: 25px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 15px rgba(234,88,12,0.4);">
+                        Посмотреть AR на iPhone (Задание 1: Quick Look) &rarr;
+                    </a>
+                `;
+                document.body.appendChild(fallback);
+            }
+
+            // Вращение столика пальцем на экране
+            let isDragging = false, prevX = 0;
+            window.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                prevX = e.clientX;
             });
-            document.body.appendChild(arBtn);
+            window.addEventListener('pointermove', (e) => {
+                if (isDragging && previewTable && previewTable.visible) {
+                    const dx = e.clientX - prevX;
+                    previewTable.rotation.y += dx * 0.01;
+                    prevX = e.clientX;
+                }
+            });
+            window.addEventListener('pointerup', () => { isDragging = false; });
 
             // Столик для 3D предпросмотра до старта AR
             previewTable = createTableMesh();

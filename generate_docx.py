@@ -206,7 +206,6 @@ def create_report():
 <body>
     <!-- Компонент для отображения 3D и AR блюда -->
     <model-viewer src="dish.glb"
-                  ios-src="dish.usdz"
                   ar
                   ar-modes="webxr scene-viewer quick-look"
                   camera-controls

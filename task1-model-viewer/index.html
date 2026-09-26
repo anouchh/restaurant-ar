@@ -3,34 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Задание 1 - Меню столовой</title>
+    <title>WebAR Задание 1 - Меню ресторана</title>
     <!-- Подключаем библиотеку model-viewer от Google -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
-        /* Убираем отступы и растягиваем на весь экран */
         body {
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
+            overflow: hidden;
+            background: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         model-viewer {
             width: 100%;
             height: 100%;
         }
+        #ar-button {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 28px;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 28px;
+            background: #ea580c;
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(234, 88, 12, 0.4);
+            white-space: nowrap;
+            transition: transform 0.15s;
+        }
+        #ar-button:active {
+            transform: translateX(-50%) scale(0.96);
+        }
     </style>
 </head>
 <body>
-    <!-- Компонент для отображения 3D и AR блюда -->
+    <!-- Компонент для отображения 3D и AR блюда ресторана -->
+    <!-- model-viewer автоматически генерирует валидный USDZ для iOS Quick Look на лету из glb -->
     <model-viewer src="dish.glb"
-                  ios-src="dish.usdz"
                   ar
                   ar-modes="webxr scene-viewer quick-look"
                   camera-controls
+                  touch-action="pan-y"
                   environment-image="aircraft_workshop_01_1k.hdr"
-                  shadow-intensity="1">
-        <!-- Кнопка для запуска AR -->
-        <button slot="ar-button" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 12px 24px; font-size: 16px; border-radius: 8px; background: #ea580c; color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-weight: bold;">
+                  shadow-intensity="1"
+                  exposure="1.1"
+                  alt="Блюдо ресторана">
+        <button slot="ar-button" id="ar-button">
             Посмотреть блюдо на столе (AR)
         </button>
     </model-viewer>
