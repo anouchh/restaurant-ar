@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WebAR Задание 5 - Управление объектом и HDRI освещение</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: #ffffff;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ar-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 0;
+            display: none;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: auto;
+        }
+
+        /* Верхняя статусная панель */
+        #top-bar {
+            position: fixed;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 28px);
+            max-width: 480px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            padding: 10px 14px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+        }
+        .top-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .top-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f8fafc;
+            letter-spacing: 0.2px;
+        }
+        #info {
+            font-size: 11px;
+            color: #94a3b8;
+            line-height: 1.2;
+        }
+        #startArBtn {
+            background: #ea580c;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+        #startArBtn:active {
+            background: #c2410c;
+            transform: scale(0.97);
+        }
+
+        /* Нижняя плавающая панель управления */
+        #bottom-bar {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 24px);
+            max-width: 500px;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
+            padding: 12px 14px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+        }
+        .bar-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .row-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #94a3b8;
+            min-width: 65px;
+        }
+
+        /* Селектор декора */
+        .decor-select {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.9);
+            color: #f1f5f9;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        /* Кнопки поворота */
+        .btn-group {
+            display: flex;
+            gap: 4px;
+        }
+        .ctrl-btn {
+            background: rgba(51, 65, 85, 0.8);
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ctrl-btn:active, .ctrl-btn.active {
+            background: #ea580c;
+            border-color: #ea580c;
+        }
+
+        /* Кнопки выбора цвета/материала */
+        .mat-group {
+            display: flex;
+            gap: 6px;
+            flex: 1;
+        }
+        .mat-btn {
+            flex: 1;
+            padding: 5px 0;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 7px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+        .mat-btn.active {
+            border-color: #ea580c;
+            background: #ea580c;
+            color: #ffffff;
+        }
+
+        /* Слайдер масштаба */
+        .scale-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .scale-slider {
+            flex: 1;
+            accent-color: #ea580c;
+            height: 4px;
+        }
+        .scale-val {
+            font-size: 11px;
+            color: #cbd5e1;
+            min-width: 34px;
+            text-align: right;
+            font-family: monospace;
+        }
+    </style>
+
+    <!-- Подключение Three.js через importmap -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- Видеопоток камеры для режима AR на iOS Safari -->
+    <video id="ar-video" playsinline autoplay muted></video>
+
+    <!-- Верхняя статусная панель -->
+    <div id="top-bar">
+        <div class="top-info">
+            <span class="top-title">Конфигуратор столика (Задание 5)</span>
+            <span id="info">Управляйте столиком в 3D или нажмите START AR</span>
+        </div>
+        <button id="startArBtn">START AR</button>
+    </div>
+
+    <!-- Нижняя плавающая панель управления -->
+    <div id="bottom-bar">
+        <!-- 1. Выбор декора и поворот -->
+        <div class="bar-row">
+            <span class="row-label">Декор:</span>
+            <select id="decorSelect" class="decor-select">
+                <option value="vase">🌹 Вазочка с розой</option>
+                <option value="dish">🍽️ Блюдо ресторана (glTF)</option>
+                <option value="candles">🕯️ Канделябр со свечами</option>
+            </select>
+            <div class="btn-group">
+                <button id="rotLeftBtn" class="ctrl-btn" title="Поворот влево">↺</button>
+                <button id="autoRotBtn" class="ctrl-btn" title="Авто-вращение">⟳ Авто</button>
+                <button id="rotRightBtn" class="ctrl-btn" title="Поворот вправо">↻</button>
+            </div>
+        </div>
+
+        <!-- 2. Выбор PBR-материала столешницы -->
+        <div class="bar-row">
+            <span class="row-label">Материал:</span>
+            <div class="mat-group">
+                <button class="mat-btn active" data-mat="oak">Дуб</button>
+                <button class="mat-btn" data-mat="wenge">Венге</button>
+                <button class="mat-btn" data-mat="marble">Мрамор</button>
+                <button class="mat-btn" data-mat="granite">Гранит</button>
+                <button class="mat-btn" data-mat="gold">Золото</button>
+            </div>
+        </div>
+
+        <!-- 3. Масштабирование -->
+        <div class="bar-row">
+            <span class="row-label">Размер:</span>
+            <div class="scale-wrap">
+                <input id="scaleSlider" type="range" class="scale-slider" min="0.5" max="1.6" step="0.05" value="1.0">
+                <span id="scaleVal" class="scale-val">100%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Запуск модульной архитектуры приложения -->
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>
