@@ -432,28 +432,40 @@ def create_report():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>WebAR Задание 4 - Размещение столика (Hit-Test)</title>
-    <!-- Three.js через ESM модули -->
+    <!-- Подключение Three.js и официального модуля ARButton -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
     <script type="module">
-        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+        import * as THREE from 'three';
+        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
-        let scene, camera, renderer, reticle, controller;
+        let camera, scene, renderer, controller, reticle;
         let hitTestSource = null, hitTestSourceRequested = false;
 
         init();
 
-        function createTable() {
+        function createTableMesh() {
             const table = new THREE.Group();
-            // Столешница, ножка и основание столика
-            const top = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 32),
-                new THREE.MeshStandardMaterial({ color: 0x9a5b28, roughness: 0.35 }));
-            top.position.y = 0.50;
+            const topGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.025, 32);
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x9a5b28, roughness: 0.4 });
+            const top = new THREE.Mesh(topGeo, topMat);
+            top.position.y = 0.48;
             table.add(top);
-            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.48, 16),
-                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 }));
-            leg.position.y = 0.25;
+
+            const legGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.46, 16);
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 });
+            const leg = new THREE.Mesh(legGeo, legMat);
+            leg.position.y = 0.24;
             table.add(leg);
-            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 32),
-                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 }));
+
+            const baseGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.015, 32);
+            const base = new THREE.Mesh(baseGeo, legMat);
             base.position.y = 0.01;
             table.add(base);
             return table;
@@ -461,60 +473,61 @@ def create_report():
 
         function init() {
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.01, 25);
-            camera.position.set(0, 0.6, 1.1);
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 25);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setAnimationLoop(animate);
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Кольцо-прицел Hit-Test на полу
-            reticle = new THREE.Mesh(new THREE.RingGeometry(0.14, 0.18, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial({ color: 0xea580c }));
+            // Кнопка входа в AR (официальный модуль Three.js)
+            document.body.appendChild(ARButton.createButton(renderer, { 
+                requiredFeatures: ['hit-test'] 
+            }));
+
+            // Кольцо-прицел (reticle) для Hit-Test на полу
+            reticle = new THREE.Mesh(
+                new THREE.RingGeometry(0.14, 0.18, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xea580c })
+            );
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
 
-            // Запуск WebXR сессии с Hit-Test
-            startArBtn.addEventListener('click', async () => {
-                const session = await navigator.xr.requestSession('immersive-ar', {
-                    optionalFeatures: ['hit-test', 'local-floor', 'dom-overlay'],
-                    domOverlay: { root: arOverlay }
-                });
-                await renderer.xr.setReferenceSpaceType('local-floor');
-                await renderer.xr.setSession(session);
-            });
-
-            // Размещение столика по касанию экрана
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', () => {
+            // Размещение столика по тапу на экран в AR
+            function onSelect() {
                 if (reticle.visible) {
-                    const table = createTable();
-                    reticle.matrix.decompose(table.position, table.quaternion, table.scale);
-                    scene.add(table);
+                    const newTable = createTableMesh();
+                    reticle.matrix.decompose(newTable.position, newTable.quaternion, newTable.scale);
+                    scene.add(newTable);
                 }
-            });
-            scene.add(controller);
+            }
 
-            renderer.setAnimationLoop(renderLoop);
+            controller = renderer.xr.getController(0);
+            controller.addEventListener('select', onSelect);
+            scene.add(controller);
+            window.addEventListener('touchstart', () => { if (renderer.xr.isPresenting) onSelect(); });
         }
 
-        function renderLoop(timestamp, frame) {
+        function animate(timestamp, frame) {
             if (frame) {
-                const refSpace = renderer.xr.getReferenceSpace();
+                const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
-                if (!hitTestSourceRequested && session) {
-                    session.requestReferenceSpace('viewer').then(space => {
-                        session.requestHitTestSource({ space }).then(src => hitTestSource = src);
+
+                if (!hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then(ref => {
+                        session.requestHitTestSource({ space: ref }).then(src => hitTestSource = src);
                     });
                     hitTestSourceRequested = true;
                 }
-                if (hitTestSource && refSpace) {
-                    const results = frame.getHitTestResults(hitTestSource);
-                    if (results.length > 0) {
+
+                if (hitTestSource && referenceSpace) {
+                    const hitResults = frame.getHitTestResults(hitTestSource);
+                    if (hitResults.length > 0) {
                         reticle.visible = true;
-                        reticle.matrix.fromArray(results[0].getPose(refSpace).transform.matrix);
+                        reticle.matrix.fromArray(hitResults[0].getPose(referenceSpace).transform.matrix);
                     } else {
                         reticle.visible = false;
                     }
