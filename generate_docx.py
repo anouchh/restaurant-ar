@@ -270,44 +270,51 @@ def create_report():
     code2 = '''<!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WebAR Задание 2 - AR Меню ресторана</title>
-    <!-- Подключение A-Frame и MindAR Image Tracking -->
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebAR Задание 2 - AR Меню ресторана</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- MindAR -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+  </style>
 </head>
 <body>
-    <div id="statusBadge" class="badge">🔍 Наведите камеру на маркер меню</div>
 
-    <!-- AR-сцена MindAR с быстрым откликом трекинга -->
-    <a-scene mindar-image="imageTargetSrc: ./targets.mind;"
-             color-space="sRGB"
-             renderer="colorManagement: true, physicallyCorrectLights: false"
-             vr-mode-ui="enabled: false"
-             device-orientation-permission-ui="enabled: false">
-             
-        <a-assets>
-            <a-asset-item id="dishModel" src="./model.glb"></a-asset-item>
-        </a-assets>
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind;"
+    color-space="sRGB"
+    renderer="colorManagement: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+  >
 
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <!-- Камера -->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <!-- Трекер маркера меню -->
-        <a-entity id="menuTarget" mindar-image-target="targetIndex: 0">
-            <a-light type="ambient" color="#ffffff" intensity="1.2"></a-light>
-            <a-light type="directional" position="1 2 2" intensity="1.5"></a-light>
+    <!-- Освещение -->
+    <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="1" position="1 2 1"></a-light>
 
-            <!-- Полупрозрачная рамка маркера -->
-            <a-plane position="0 0 0.005" width="1" height="0.552" material="color: #ea580c; opacity: 0.15; transparent: true;"></a-plane>
+    <!-- Маркер меню (targetIndex: 0) -->
+    <a-entity mindar-image-target="targetIndex: 0">
 
-            <!-- 3D-модель горячего блюда с вращением -->
-            <a-entity position="0 0 0.08" rotation="75 0 0" scale="0.85 0.85 0.85"
-                      animation="property: rotation; to: 75 360 0; loop: true; dur: 12000; easing: linear">
-                <a-gltf-model src="#dishModel"></a-gltf-model>
-            </a-entity>
-        </a-entity>
-    </a-scene>
+      <!-- 3D модель блюда ресторана -->
+      <a-gltf-model
+        src="./model.glb"
+        position="0 0 0"
+        scale="0.85 0.85 0.85"
+        rotation="90 0 0"
+      ></a-gltf-model>
+
+    </a-entity>
+
+  </a-scene>
+
 </body>
 </html>'''
     add_code(code2)
