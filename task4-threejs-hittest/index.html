@@ -3,138 +3,550 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WebAR Задание 4 - Размещение столика</title>
+    <title>WebAR Задание 4 - Размещение столика ресторана (Hit-Test)</title>
     <style>
-        body {
-            margin: 0;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            background: #000;
-            font-family: sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f1f5f9;
         }
-        #info {
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
             position: absolute;
-            top: 20px;
+            top: 0;
+            left: 0;
+        }
+
+        /* 2D экран предпросмотра до запуска AR */
+        #preview-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 20px 32px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .card-header {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 16px 20px;
+            max-width: 440px;
             width: 100%;
             text-align: center;
-            color: white;
-            font-size: 15px;
-            z-index: 10;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+            pointer-events: auto;
+        }
+
+        .card-header h1 {
+            font-size: 18px;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .card-header p {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .bottom-actions {
+            max-width: 440px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .btn-start-ar {
+            width: 100%;
+            padding: 15px;
+            background: #ea580c;
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(234, 88, 12, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-start-ar:hover {
+            background: #c2410c;
+        }
+
+        .btn-back {
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+            text-decoration: none;
+            padding: 6px;
+        }
+
+        /* Оверлей во время активной сессии AR */
+        #ar-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
+            z-index: 100;
+        }
+
+        #ar-status {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 25px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            max-width: 90%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s;
+        }
+
+        #ar-status.found {
+            background: rgba(22, 101, 52, 0.9);
+            border-color: rgba(74, 222, 128, 0.5);
+        }
+
+        .ar-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            pointer-events: auto;
+            padding: 0 20px;
+        }
+
+        .btn-ar-action {
+            padding: 12px 20px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+        }
+
+        .btn-ar-primary {
+            background: #ea580c;
+            border-color: #ea580c;
+        }
+
+        /* Модальное окно ошибки / инструкций */
+        #error-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-box {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 22px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .modal-box h3 {
+            margin-bottom: 8px;
+            font-size: 17px;
+            color: #b91c1c;
+        }
+
+        .modal-box p {
+            font-size: 13px;
+            color: #475569;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .modal-box button {
+            background: #0f172a;
+            color: #ffffff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="info">Наведите камеру на пол и коснитесь экрана, чтобы поставить столик</div>
+    <div id="canvas-container"></div>
 
+    <!-- 2D интерфейс с 3D просмотром столика до входа в AR -->
+    <div id="preview-ui">
+        <div class="card-header">
+            <h1>Столик ресторана</h1>
+            <p>Задание 4: Размещение мебели через WebXR Hit-Test на поверхности пола</p>
+        </div>
+
+        <div class="bottom-actions">
+            <button id="startArBtn" class="btn-start-ar" type="button">
+                <span>🚀</span> Разместить столик в AR
+            </button>
+            <a href="../index.html" class="btn-back">&larr; Вернуться в меню заданий</a>
+        </div>
+    </div>
+
+    <!-- Интерфейс во время AR-сессии -->
+    <div id="ar-overlay">
+        <div id="ar-status">🔍 Медленно перемещайте камеру по полу для поиска поверхности...</div>
+        <div class="ar-controls">
+            <button id="placeBtn" class="btn-ar-action btn-ar-primary" type="button">Поставить столик</button>
+            <button id="clearBtn" class="btn-ar-action" type="button">Очистить</button>
+            <button id="exitArBtn" class="btn-ar-action" type="button">✕ Выход</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно ошибки -->
+    <div id="error-modal">
+        <div class="modal-box">
+            <h3 id="error-title">Поддержка WebXR</h3>
+            <p id="error-desc"></p>
+            <button id="closeErrorBtn" type="button">Понятно</button>
+        </div>
+    </div>
+
+    <!-- Подключение Three.js через модуль -->
     <script type="module">
         import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-        import { ARButton } from 'https://unpkg.com/three@0.160.0/examples/jsm/webxr/ARButton.js';
 
-        let camera, scene, renderer, controller, reticle;
+        let scene, camera, renderer;
+        let previewTable, spawnedTables = [];
+        let reticle, controller;
         let hitTestSource = null, hitTestSourceRequested = false;
+        let currentSession = null;
+        let isARActive = false;
+
+        const container = document.getElementById('canvas-container');
+        const previewUI = document.getElementById('preview-ui');
+        const arOverlay = document.getElementById('ar-overlay');
+        const arStatus = document.getElementById('ar-status');
+        const startArBtn = document.getElementById('startArBtn');
+        const placeBtn = document.getElementById('placeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exitArBtn = document.getElementById('exitArBtn');
+        const errorModal = document.getElementById('error-modal');
+        const errorDesc = document.getElementById('error-desc');
+        const closeErrorBtn = document.getElementById('closeErrorBtn');
 
         init();
 
+        function createTableMesh() {
+            const table = new THREE.Group();
+
+            // Столешница из дерева
+            const topGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.03, 32);
+            const topMat = new THREE.MeshStandardMaterial({ 
+                color: 0x9a5b28, 
+                roughness: 0.35, 
+                metalness: 0.05 
+            });
+            const top = new THREE.Mesh(topGeo, topMat);
+            top.position.y = 0.50;
+            table.add(top);
+
+            // Металлическая ножка стола
+            const legGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.48, 16);
+            const legMat = new THREE.MeshStandardMaterial({ 
+                color: 0x222222, 
+                roughness: 0.2, 
+                metalness: 0.8 
+            });
+            const leg = new THREE.Mesh(legGeo, legMat);
+            leg.position.y = 0.25;
+            table.add(leg);
+
+            // Основание стола
+            const baseGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.02, 32);
+            const base = new THREE.Mesh(baseGeo, legMat);
+            base.position.y = 0.01;
+            table.add(base);
+
+            // Салфетка и вазочка в центре столика
+            const vaseGeo = new THREE.CylinderGeometry(0.03, 0.02, 0.08, 16);
+            const vaseMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+            const vase = new THREE.Mesh(vaseGeo, vaseMat);
+            vase.position.y = 0.55;
+            table.add(vase);
+
+            return table;
+        }
+
         function init() {
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-            // Освещение
-            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 2.5);
-            scene.add(hemiLight);
+            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.01, 25);
+            camera.position.set(0, 0.6, 1.1);
+            camera.lookAt(0, 0.3, 0);
 
-            const dirLight = new THREE.DirectionalLight(0xffeedd, 2.0);
-            dirLight.position.set(1, 2, 1);
-            scene.add(dirLight);
+            // Освещение сцены
+            const ambient = new THREE.HemisphereLight(0xffffff, 0xbbbbdd, 1.8);
+            ambient.position.set(0.5, 1, 0.25);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xfff5e6, 2.2);
+            sun.position.set(1.5, 3, 2);
+            scene.add(sun);
 
             // WebGL рендерер
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.xr.enabled = true;
-            document.body.appendChild(renderer.domElement);
+            renderer.setClearColor(0x000000, 0);
+            container.appendChild(renderer.domElement);
 
-            // Кнопка запуска AR с hit-test
-            document.body.appendChild(ARButton.createButton(renderer, {
-                requiredFeatures: ['hit-test']
-            }));
+            // Столик для 2D-предпросмотра
+            previewTable = createTableMesh();
+            previewTable.position.set(0, 0, 0);
+            scene.add(previewTable);
 
-            // Модель круглого столика ресторана
-            const table = new THREE.Group();
-            
-            // Столешница
-            const topMesh = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.25, 0.25, 0.02, 32),
-                new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.3 })
-            );
-            topMesh.position.y = 0.45;
-            table.add(topMesh);
+            // Маркер-прицел Hit-Test (reticle)
+            const ringGeo = new THREE.RingGeometry(0.14, 0.18, 32).rotateX(-Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xea580c });
+            reticle = new THREE.Mesh(ringGeo, ringMat);
 
-            // Ножка столика
-            const legMesh = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.025, 0.025, 0.44, 16),
-                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
-            );
-            legMesh.position.y = 0.22;
-            table.add(legMesh);
+            const dotGeo = new THREE.CircleGeometry(0.04, 16).rotateX(-Math.PI / 2);
+            const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const dot = new THREE.Mesh(dotGeo, dotMat);
+            dot.position.y = 0.001;
+            reticle.add(dot);
 
-            // Основание столика
-            const baseMesh = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.18, 0.18, 0.015, 32),
-                new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 })
-            );
-            baseMesh.position.y = 0.01;
-            table.add(baseMesh);
-
-            // Размещение столика по тапу
-            function onSelect() {
-                if (reticle.visible) {
-                    const newTable = table.clone();
-                    reticle.matrix.decompose(newTable.position, newTable.quaternion, newTable.scale);
-                    scene.add(newTable);
-                }
-            }
-
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
-
-            // Кольцо-прицел (reticle)
-            reticle = new THREE.Mesh(
-                new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial({ color: 0xea580c })
-            );
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
 
-            renderer.setAnimationLoop(animate);
+            // WebXR контроллер для тапа по экрану
+            controller = renderer.xr.getController(0);
+            controller.addEventListener('select', onPlaceObject);
+            scene.add(controller);
+
+            // Вращение столика пальцем / мышью на 2D-экране
+            let isDragging = false;
+            let prevX = 0;
+            window.addEventListener('pointerdown', (e) => {
+                if (!isARActive) {
+                    isDragging = true;
+                    prevX = e.clientX;
+                }
+            });
+            window.addEventListener('pointermove', (e) => {
+                if (isDragging && !isARActive && previewTable) {
+                    const dx = e.clientX - prevX;
+                    previewTable.rotation.y += dx * 0.01;
+                    prevX = e.clientX;
+                }
+            });
+            window.addEventListener('pointerup', () => { isDragging = false; });
+
+            window.addEventListener('resize', onWindowResize);
+
+            renderer.setAnimationLoop(renderLoop);
         }
 
-        // Анимация и поиск плоскости
-        function animate(timestamp, frame) {
-            if (frame) {
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Размещение столика в найденной точке поверхности
+        function onPlaceObject() {
+            if (!isARActive) return;
+
+            const newTable = createTableMesh();
+            if (reticle.visible) {
+                reticle.matrix.decompose(newTable.position, newTable.quaternion, newTable.scale);
+            } else {
+                // Если hit-test ещё ищет, ставим в 1 метре перед камерой
+                const forward = new THREE.Vector3(0, -0.4, -1.0).applyQuaternion(camera.quaternion);
+                newTable.position.copy(camera.position).add(forward);
+            }
+
+            scene.add(newTable);
+            spawnedTables.push(newTable);
+
+            arStatus.textContent = '✅ Столик размещен на полу! Нажмите еще раз для установки второго';
+            arStatus.className = 'found';
+        }
+
+        // Запуск сессии WebXR AR
+        startArBtn.addEventListener('click', async () => {
+            if (!navigator.xr) {
+                showError('WebXR не поддерживается в этом браузере',
+                    'Для запуска WebXR требуется браузер Google Chrome на Android с установленным пакетом «Сервисы Google Play для AR» (ARCore). На устройствах Apple (iPhone) компания Apple не поддерживает стандарт WebXR — на iOS используйте Задание 1 через Quick Look.');
+                return;
+            }
+
+            try {
+                const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                if (!supported) {
+                    showError('Режим immersive-ar недоступен',
+                        'Ваше устройство или браузер не поддерживает дополненную реальность WebXR. Убедитесь, что на Android установлены «Сервисы Google Play для AR».');
+                    return;
+                }
+
+                // Запрос сессии с поддержкой hit-test и dom-overlay
+                const sessionInit = {
+                    optionalFeatures: ['hit-test', 'local-floor', 'dom-overlay'],
+                    domOverlay: { root: arOverlay }
+                };
+
+                const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+                onSessionStarted(session);
+
+            } catch (err) {
+                console.error('Ошибка WebXR:', err);
+                showError('Не удалось открыть AR-сессию',
+                    'Причина: ' + (err.message || err) + '\n\nПроверьте: \n1. Разрешен ли доступ к камере в браузере.\n2. Установлено ли приложение «Сервисы Google Play для AR» (ARCore) из Google Play Store.');
+            }
+        });
+
+        async function onSessionStarted(session) {
+            currentSession = session;
+            isARActive = true;
+            session.addEventListener('end', onSessionEnded);
+
+            // Переключаем интерфейс
+            previewUI.style.display = 'none';
+            arOverlay.style.display = 'block';
+            previewTable.visible = false;
+
+            try {
+                await renderer.xr.setReferenceSpaceType('local-floor');
+            } catch (e) {
+                try {
+                    await renderer.xr.setReferenceSpaceType('local');
+                } catch (e2) {}
+            }
+
+            await renderer.xr.setSession(session);
+        }
+
+        function onSessionEnded() {
+            currentSession = null;
+            isARActive = false;
+            hitTestSource = null;
+            hitTestSourceRequested = false;
+            reticle.visible = false;
+
+            previewUI.style.display = 'flex';
+            arOverlay.style.display = 'none';
+            previewTable.visible = true;
+
+            // Восстанавливаем положение камеры
+            camera.position.set(0, 0.6, 1.1);
+            camera.lookAt(0, 0.3, 0);
+        }
+
+        // Кнопки управления в AR
+        placeBtn.addEventListener('click', onPlaceObject);
+        clearBtn.addEventListener('click', () => {
+            spawnedTables.forEach(t => scene.remove(t));
+            spawnedTables = [];
+            arStatus.textContent = 'Столики удалены. Наведите камеру на пол для новой установки';
+            arStatus.className = '';
+        });
+        exitArBtn.addEventListener('click', () => {
+            if (currentSession) currentSession.end();
+        });
+
+        function showError(title, text) {
+            document.getElementById('error-title').textContent = title;
+            errorDesc.innerText = text;
+            errorModal.style.display = 'flex';
+        }
+        closeErrorBtn.addEventListener('click', () => {
+            errorModal.style.display = 'none';
+        });
+
+        // Главный цикл анимации и Hit-Test
+        function renderLoop(timestamp, frame) {
+            if (isARActive && frame) {
                 const refSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
-                if (!hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then(space => {
-                        session.requestHitTestSource({ space }).then(source => hitTestSource = source);
-                    });
+                if (!hitTestSourceRequested && session) {
+                    session.requestReferenceSpace('viewer').then(viewerSpace => {
+                        session.requestHitTestSource({ space: viewerSpace })
+                            .then(source => { hitTestSource = source; })
+                            .catch(() => {});
+                    }).catch(() => {});
+
                     hitTestSourceRequested = true;
                 }
 
-                if (hitTestSource) {
-                    const results = frame.getHitTestResults(hitTestSource);
-                    if (results.length > 0) {
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(results[0].getPose(refSpace).transform.matrix);
+                if (hitTestSource && refSpace) {
+                    const hitResults = frame.getHitTestResults(hitTestSource);
+                    if (hitResults.length > 0) {
+                        const pose = hitResults[0].getPose(refSpace);
+                        if (pose) {
+                            reticle.visible = true;
+                            reticle.matrix.fromArray(pose.transform.matrix);
+                            arStatus.textContent = '✅ Поверхность пола обнаружена! Нажмите «Поставить столик»';
+                            arStatus.className = 'found';
+                        }
                     } else {
                         reticle.visible = false;
+                        if (!arStatus.textContent.includes('размещен')) {
+                            arStatus.textContent = '🔍 Ищите ровную поверхность пола (направьте камеру под углом)...';
+                            arStatus.className = '';
+                        }
                     }
                 }
+            } else if (!isARActive && previewTable) {
+                // Плавное медленное вращение столика на 2D экране
+                previewTable.rotation.y += 0.005;
             }
+
             renderer.render(scene, camera);
         }
     </script>
