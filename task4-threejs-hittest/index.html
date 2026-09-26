@@ -11,6 +11,7 @@
             background: #000;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
+
         #info {
             position: absolute;
             top: 20px;
@@ -22,13 +23,53 @@
             z-index: 10;
             pointer-events: none;
             text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+            padding: 0 16px;
+            box-sizing: border-box;
+        }
+
+        #ar-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            display: none;
+        }
+
+        #startArBtn {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 32px;
+            background: #ea580c;
+            color: #ffffff;
+            border: none;
+            border-radius: 28px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(234, 88, 12, 0.45);
+            z-index: 100;
+            white-space: nowrap;
+            outline: none;
+            transition: transform 0.15s;
+        }
+
+        #startArBtn:active {
+            transform: translateX(-50%) scale(0.96);
         }
     </style>
 </head>
 <body>
     <div id="info">Наведите камеру на пол и коснитесь экрана, чтобы поставить столик</div>
+    <video id="ar-video" autoplay playsinline muted></video>
+    <button id="startArBtn">START AR</button>
 
-    <!-- Подключение Three.js и официального модуля ARButton -->
+    <!-- Подключение библиотеки Three.js -->
     <script type="importmap">
         {
             "imports": {
@@ -40,24 +81,28 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
         let camera, scene, renderer;
         let controller;
         let reticle;
         let hitTestSource = null;
         let hitTestSourceRequested = false;
+        let isCameraAR = false;
+
+        const info = document.getElementById('info');
+        const startBtn = document.getElementById('startArBtn');
+        const video = document.getElementById('ar-video');
 
         init();
 
-        // 3D-модель круглого столика ресторана
+        // Построение 3D-модели круглого столика ресторана
         function createTable() {
             const table = new THREE.Group();
 
             // Столешница
             const top = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.25, 0.25, 0.02, 32),
-                new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.3 })
+                new THREE.CylinderGeometry(0.25, 0.25, 0.025, 32),
+                new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.35 })
             );
             top.position.y = 0.45;
             table.add(top);
@@ -78,6 +123,14 @@
             base.position.y = 0.01;
             table.add(base);
 
+            // Вазочка на столике
+            const vase = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.025, 0.015, 0.06, 16),
+                new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 })
+            );
+            vase.position.y = 0.49;
+            table.add(vase);
+
             return table;
         }
 
@@ -94,31 +147,13 @@
             dirLight.position.set(1, 2, 1);
             scene.add(dirLight);
 
-            // Рендерер с поддержкой WebXR
+            // Рендерер с поддержкой WebXR и прозрачности для камеры
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setAnimationLoop(animate);
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
-
-            // Официальная кнопка Three.js для входа в AR
-            document.body.appendChild(ARButton.createButton(renderer, {
-                requiredFeatures: ['hit-test']
-            }));
-
-            // Размещение столика по касанию экрана (событие select)
-            function onSelect() {
-                if (reticle.visible) {
-                    const table = createTable();
-                    reticle.matrix.decompose(table.position, table.quaternion, table.scale);
-                    scene.add(table);
-                }
-            }
-
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
 
             // Кольцо-прицел (reticle) для поиска пола через hit-test
             reticle = new THREE.Mesh(
@@ -128,6 +163,95 @@
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
+
+            // Размещение столика в точке прицела
+            function placeTable() {
+                const table = createTable();
+                if (reticle.visible) {
+                    reticle.matrix.decompose(table.position, table.quaternion, table.scale);
+                } else {
+                    table.position.set(0, -0.4, -1.0).applyMatrix4(camera.matrixWorld);
+                }
+                scene.add(table);
+                info.innerHTML = '✅ Столик установлен на полу!<br>Коснитесь экрана ещё раз, чтобы поставить ещё один';
+            }
+
+            // WebXR контроллер для тапа в режиме immersive-ar
+            controller = renderer.xr.getController(0);
+            controller.addEventListener('select', placeTable);
+            scene.add(controller);
+
+            // Обработчик касания экрана для мобильных устройств (iOS / Android)
+            window.addEventListener('touchstart', (e) => {
+                if (isCameraAR || renderer.xr.isPresenting) {
+                    if (e.target.tagName !== 'BUTTON') {
+                        placeTable();
+                    }
+                }
+            });
+
+            // Обработка клика по кнопке START AR
+            startBtn.addEventListener('click', async () => {
+                // 1. Попытка нативного запуска WebXR (Android Chrome)
+                if ('xr' in navigator) {
+                    try {
+                        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                        if (supported) {
+                            const session = await navigator.xr.requestSession('immersive-ar', {
+                                requiredFeatures: ['hit-test']
+                            });
+                            session.addEventListener('end', () => {
+                                startBtn.style.display = 'block';
+                                hitTestSourceRequested = false;
+                                hitTestSource = null;
+                            });
+                            await renderer.xr.setSession(session);
+                            startBtn.style.display = 'none';
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('WebXR не запустился, включаем камерный режим:', e);
+                    }
+                }
+
+                // 2. Универсальный запуск камеры для iOS (iPhone Safari) и других устройств
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' } }
+                    });
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                    renderer.setClearColor(0x000000, 0);
+                    startBtn.style.display = 'none';
+                    isCameraAR = true;
+                    reticle.visible = true;
+
+                    // Отслеживание гироскопа для поворота виртуальной камеры
+                    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        try {
+                            const perm = await DeviceOrientationEvent.requestPermission();
+                            if (perm === 'granted') {
+                                window.addEventListener('deviceorientation', handleOrientation);
+                            }
+                        } catch (err) {}
+                    } else if (window.DeviceOrientationEvent) {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                    }
+
+                    info.innerHTML = '✅ Камера активна. Коснитесь экрана, чтобы поставить столик!';
+                } catch (err) {
+                    console.error('Ошибка доступа к камере:', err);
+                    info.innerHTML = '⚠️ Предоставьте доступ к камере в настройках браузера';
+                }
+            });
+
+            function handleOrientation(event) {
+                if (!isCameraAR) return;
+                const alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
+                const beta = event.beta ? THREE.MathUtils.degToRad(event.beta - 45) : 0;
+                const gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
+                camera.rotation.set(beta, gamma, alpha, 'YXZ');
+            }
 
             window.addEventListener('resize', onWindowResize);
         }
@@ -141,35 +265,33 @@
         // Цикл анимации и hit-test
         function animate(timestamp, frame) {
             if (frame) {
+                // Обработка нативного WebXR hit-test
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
                 if (!hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then(function (referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
+                    session.requestReferenceSpace('viewer').then(function (ref) {
+                        session.requestHitTestSource({ space: ref }).then(function (source) {
                             hitTestSource = source;
                         });
                     });
-
-                    session.addEventListener('end', function () {
-                        hitTestSourceRequested = false;
-                        hitTestSource = null;
-                    });
-
                     hitTestSourceRequested = true;
                 }
 
-                if (hitTestSource) {
+                if (hitTestSource && referenceSpace) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
-
                     if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
                         reticle.visible = true;
-                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                        reticle.matrix.fromArray(hitTestResults[0].getPose(referenceSpace).transform.matrix);
                     } else {
                         reticle.visible = false;
                     }
                 }
+            } else if (isCameraAR) {
+                // Камерный режим (iOS / универсальный)
+                reticle.visible = true;
+                const targetPos = new THREE.Vector3(0, -0.4, -1.0).applyMatrix4(camera.matrixWorld);
+                reticle.matrix.makeTranslation(targetPos.x, targetPos.y, targetPos.z);
             }
 
             renderer.render(scene, camera);
