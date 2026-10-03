@@ -307,6 +307,7 @@
          * Запуск WebXR AR-сессии или fallback на камеру для мобильных
          */
         async function startWebXR() {
+            // 1. Попытка нативного запуска WebXR (Android Chrome)
             if ('xr' in navigator) {
                 try {
                     const supported = await navigator.xr.isSessionSupported('immersive-ar');
@@ -314,26 +315,35 @@
                         const session = await navigator.xr.requestSession('immersive-ar', {
                             optionalFeatures: ['local-floor', 'viewer']
                         });
-                        renderer.xr.setSession(session);
-                        statusMsg.innerHTML = '✨ WebXR AR сессия активна! Объект удерживается в центре поля зрения.';
+                        session.addEventListener('end', () => {
+                            enterArBtn.textContent = 'ENTER AR';
+                            enterArBtn.style.background = '#ea580c';
+                        });
+                        await renderer.xr.setSession(session);
+                        enterArBtn.textContent = 'AR АКТИВЕН';
+                        enterArBtn.style.background = '#16a34a';
+                        statusMsg.innerHTML = '✨ WebXR AR сессия активна! Объект зафиксирован в центре поля зрения (viewer-space).';
                         return;
                     }
                 } catch (e) {
-                    console.log('WebXR не доступен на данном устройстве:', e);
+                    console.log('WebXR не запустился, переключаем на камеру:', e);
                 }
             }
 
-            // Fallback для мобильных устройств (iOS Safari / универсальный)
+            // 2. Универсальный запуск камеры для iOS и мобильных
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: { ideal: 'environment' } }
                 });
                 video.srcObject = stream;
-                video.setAttribute('autoplay', '');
-                video.setAttribute('muted', '');
-                video.setAttribute('playsinline', '');
                 video.style.display = 'block';
-                await video.play();
+
+                try {
+                    const p = video.play();
+                    if (p !== undefined) {
+                        p.catch(() => {});
+                    }
+                } catch (e) {}
 
                 document.body.style.backgroundColor = 'transparent';
                 renderer.setClearColor(0x000000, 0);
@@ -344,7 +354,7 @@
                 statusMsg.innerHTML = '📷 Камера активна. Объект зафиксирован в центре поля зрения (viewer-space).';
             } catch (err) {
                 console.error('Ошибка камеры:', err);
-                statusMsg.innerHTML = '⚠️ Режим AR недоступен: ' + (err.message || 'нет доступа к камере');
+                statusMsg.innerHTML = '⚠️ Доступ к камере отклонен: ' + (err.message || 'разрешите доступ в настройках');
             }
         }
 

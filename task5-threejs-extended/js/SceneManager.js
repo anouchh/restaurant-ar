@@ -155,11 +155,13 @@ export class SceneManager {
                 video: { facingMode: { ideal: 'environment' } }
             });
             this.video.srcObject = stream;
-            this.video.setAttribute('autoplay', '');
-            this.video.setAttribute('muted', '');
-            this.video.setAttribute('playsinline', '');
             this.video.style.display = 'block';
-            await this.video.play();
+            try {
+                const p = this.video.play();
+                if (p !== undefined) {
+                    p.catch(() => {});
+                }
+            } catch (e) {}
 
             document.body.style.backgroundColor = 'transparent';
             this.renderer.setClearColor(0x000000, 0);
