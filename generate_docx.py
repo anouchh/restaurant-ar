@@ -70,7 +70,7 @@ def create_report():
         r.font.color.rgb = RGBColor(30, 41, 59)
         doc.add_paragraph()
 
-    def add_screenshot_box(title):
+    def add_screenshot_box(title, image_path=None):
         tbl = doc.add_table(rows=1, cols=1)
         tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
         cell = tbl.cell(0, 0)
@@ -79,12 +79,27 @@ def create_report():
         set_cell_borders(cell, color='94A3B8', sz='8', val='dashed')
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_before = Pt(16)
-        p.paragraph_format.space_after = Pt(16)
-        r1 = p.add_run(f'📷  [ Место для скриншота: {title} ]')
-        r1.font.size = Pt(10)
-        r1.font.color.rgb = RGBColor(71, 85, 105)
-        doc.add_paragraph()
+
+        if image_path and os.path.exists(image_path):
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.space_after = Pt(4)
+            run_img = p.add_run()
+            run_img.add_picture(image_path, width=Inches(3.2))
+            p_cap = doc.add_paragraph()
+            p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_cap.paragraph_format.space_before = Pt(4)
+            p_cap.paragraph_format.space_after = Pt(8)
+            r_cap = p_cap.add_run(f'Рисунок — {title}')
+            r_cap.font.size = Pt(10)
+            r_cap.font.italic = True
+            r_cap.font.color.rgb = RGBColor(71, 85, 105)
+        else:
+            p.paragraph_format.space_before = Pt(16)
+            p.paragraph_format.space_after = Pt(16)
+            r1 = p.add_run(f'📷  [ Место для скриншота: {title} ]')
+            r1.font.size = Pt(10)
+            r1.font.color.rgb = RGBColor(71, 85, 105)
+            doc.add_paragraph()
 
     # ==================== ТИТУЛЬНЫЙ ЛИСТ ====================
     p_top = doc.add_paragraph()
@@ -743,7 +758,20 @@ public class WebXRViewerSpacePlacer : MonoBehaviour
     p = doc.add_paragraph()
     p.add_run('Приложение развернуто: https://anouchh.github.io/restaurant-ar/task6-unity-webxr/index.html. Объект надежно центрируется в поле зрения (viewer-space) и вращается в дополненной реальности.')
 
-    add_screenshot_box('Unity WebXR Exporter сцена с объектом в Viewer-Space')
+    shot6 = r'C:\Users\Anna\.gemini\antigravity\brain\5cd26d6a-c7a6-42ca-9cc2-f72381a62cac\.user_uploaded\media_1791021281264.png'
+    add_screenshot_box('Unity WebXR Exporter сцена с объектом в Viewer-Space', shot6)
+
+    doc.add_page_break()
+    add_heading('ЗАКЛЮЧЕНИЕ', 1)
+    p = doc.add_paragraph()
+    p.add_run('В рамках выполнения комплекса практических заданий № 1–6 по дисциплине «Разработка кроссплатформенных приложений дополненной реальности» были успешно освоены ключевые современные WebAR-технологии на единую тематику ресторанных сервисов:\n'
+              '• Задание 1: Размещение 3D-блюда через веб-компонент <model-viewer> с автоматической генерацией USDZ и Quick Look на iOS;\n'
+              '• Задание 2: Трекинг печатного ресторанного меню на базе библиотеки MindAR Image Tracking и A-Frame;\n'
+              '• Задание 3: Примерка поварского колпака с использованием нейросетевого распознавания лица MindAR Face Tracking и MediaPipe;\n'
+              '• Задание 4: Определение плоскости пола и установка круглого столика через WebXR Hit-Test на Three.js;\n'
+              '• Задание 5: Расширение Three.js сцены модульной архитектурой классов, PBR-материалами, HDRI-освещением, интерфейсом конфигуратора и гироскопом;\n'
+              '• Задание 6: Сборка WebAR-сцены на движке Unity с пакетом De-Panther unity-webxr-export и сценарием позиционирования в viewer-space.\n\n'
+              'Все проекты опубликованы на GitHub Pages и протестированы на мобильных устройствах.')
 
     output_filename = 'Отчет_РКПДР_МИРЭА.docx'
     try:
