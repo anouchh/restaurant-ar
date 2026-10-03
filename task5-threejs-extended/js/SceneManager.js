@@ -60,12 +60,20 @@ export class SceneManager {
         this.controller.addEventListener('select', () => this.handleScreenTap());
         this.scene.add(this.controller);
 
-        // 8. Обработчик тапа по экрану для мобильных устройств (iOS / Android)
+        // 8. Обработчик тапа и клика по экрану для установки столика на пол
         window.addEventListener('touchstart', (e) => {
             if (this.isCameraAR || this.renderer.xr.isPresenting) {
-                // Игнорируем нажатия на UI-кнопки
                 if (e.target.closest('#bottom-bar') || e.target.closest('#top-bar')) return;
-                this.handleScreenTap();
+                if (e.touches.length > 0) {
+                    this.handleScreenTap(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }
+        });
+
+        window.addEventListener('click', (e) => {
+            if (this.isCameraAR || this.renderer.xr.isPresenting) {
+                if (e.target.closest('#bottom-bar') || e.target.closest('#top-bar')) return;
+                this.handleScreenTap(e.clientX, e.clientY);
             }
         });
 
@@ -133,6 +141,7 @@ export class SceneManager {
                         this.hitTestSource = null;
                         this.info.innerHTML = 'Нажмите START AR для просмотра в дополненной реальности';
                     });
+                    if (this.onStartARCallback) this.onStartARCallback();
                     return;
                 }
             } catch (e) {
@@ -149,14 +158,15 @@ export class SceneManager {
             this.video.style.display = 'block';
             this.isCameraAR = true;
             this.reticle.visible = true;
-            this.info.innerHTML = '✨ Камера активна. Коснитесь экрана, чтобы зафиксировать столик';
+            if (this.onStartARCallback) this.onStartARCallback();
+            this.info.innerHTML = '✨ Камера активна. Коснитесь пола, чтобы поставить столик!';
         } catch (err) {
             console.error('Ошибка доступа к камере:', err);
             this.info.innerHTML = '⚠️ Камера недоступна. Вы можете управлять столиком в 3D';
         }
     }
 
-    handleScreenTap() {
+    handleScreenTap(screenX, screenY) {
         if (!this.onPlaceCallback) return;
 
         let spawnPos = new THREE.Vector3(0, -0.6, -1.2);
@@ -171,10 +181,29 @@ export class SceneManager {
 
             const euler = new THREE.Euler().setFromQuaternion(quat, 'YXZ');
             spawnRotY = euler.y;
+        } else if (screenX !== undefined && screenY !== undefined) {
+            // Пересечение луча тапа с плоскостью пола (y = -0.6)
+            const mouse = new THREE.Vector2(
+                (screenX / window.innerWidth) * 2 - 1,
+                -(screenY / window.innerHeight) * 2 + 1
+            );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, this.camera);
+            const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.6); // плоскость y = -0.6
+            const intersectPoint = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(floorPlane, intersectPoint)) {
+                if (intersectPoint.z < -0.4 && intersectPoint.z > -4.0) {
+                    spawnPos.copy(intersectPoint);
+                }
+            }
         }
 
+        // Обновляем позицию прицела на полу
+        this.reticle.matrix.makeRotationX(-Math.PI / 2);
+        this.reticle.matrix.setPosition(spawnPos.x, spawnPos.y, spawnPos.z);
+
         this.onPlaceCallback(spawnPos, spawnRotY);
-        this.info.innerHTML = '✅ Столик на полу! Используйте нижнюю панель для настроек';
+        this.info.innerHTML = '✅ Столик установлен на полу! Коснитесь другой точки, чтобы переместить';
     }
 
     onWindowResize() {

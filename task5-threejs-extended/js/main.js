@@ -17,10 +17,16 @@ window.addEventListener('DOMContentLoaded', () => {
     sceneManager.scene.add(table);
     sceneManager.activeTable = table;
 
-    // 3. Коллбэк размещения столика в AR
+    // 3. Коллбэк старта AR (скрываем столик, пока пользователь не коснется нужной точки пола)
+    sceneManager.onStartARCallback = () => {
+        table.visible = false;
+    };
+
+    // 4. Коллбэк размещения столика в AR
     sceneManager.onPlaceCallback = (pos, rotY) => {
         table.position.copy(pos);
         table.rotation.set(0, rotY, 0);
+        table.visible = true;
     };
 
     // 4. Коллбэк каждого кадра (анимация и авто-вращение)
