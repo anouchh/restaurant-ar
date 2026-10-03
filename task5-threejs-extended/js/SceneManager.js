@@ -149,21 +149,67 @@ export class SceneManager {
             }
         }
 
-        // Универсальный запуск камеры для iOS (iPhone Safari)
+        // Универсальный запуск камеры для iOS (iPhone Safari / универсальный)
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: { ideal: 'environment' } }
             });
             this.video.srcObject = stream;
+            this.video.setAttribute('autoplay', '');
+            this.video.setAttribute('muted', '');
+            this.video.setAttribute('playsinline', '');
             this.video.style.display = 'block';
+            await this.video.play();
+
+            document.body.style.backgroundColor = 'transparent';
+            this.renderer.setClearColor(0x000000, 0);
+
             this.isCameraAR = true;
             this.reticle.visible = true;
+
+            // Запрос доступа к гироскопу для привязки столика к реальному пространству комнаты
+            if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const response = await DeviceOrientationEvent.requestPermission();
+                    if (response === 'granted') {
+                        window.addEventListener('deviceorientation', (e) => this.onDeviceOrientation(e));
+                    }
+                } catch (e) {
+                    console.warn('Ошибка гироскопа:', e);
+                }
+            } else if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (e) => this.onDeviceOrientation(e));
+            }
+
             if (this.onStartARCallback) this.onStartARCallback();
             this.info.innerHTML = '✨ Камера активна. Коснитесь пола, чтобы поставить столик!';
         } catch (err) {
             console.error('Ошибка доступа к камере:', err);
             this.info.innerHTML = '⚠️ Камера недоступна. Вы можете управлять столиком в 3D';
         }
+    }
+
+    onDeviceOrientation(event) {
+        if (!this.isCameraAR) return;
+        if (event.alpha === null || event.beta === null || event.gamma === null) return;
+
+        if (this.baseHeading === undefined || this.baseHeading === null) {
+            this.baseHeading = event.alpha;
+        }
+
+        const zee = new THREE.Vector3(0, 0, 1);
+        const q0 = new THREE.Quaternion();
+        const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -90 deg X axis
+
+        const alpha = THREE.MathUtils.degToRad(event.alpha - this.baseHeading);
+        const beta = THREE.MathUtils.degToRad(event.beta);
+        const gamma = THREE.MathUtils.degToRad(event.gamma);
+        const orient = THREE.MathUtils.degToRad(window.orientation || 0);
+
+        const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
+        this.camera.quaternion.setFromEuler(euler);
+        this.camera.quaternion.multiply(q1); // Камера направлена через заднюю панель телефона
+        this.camera.quaternion.multiply(q0.setFromAxisAngle(zee, -orient));
     }
 
     handleScreenTap(screenX, screenY) {
@@ -192,18 +238,24 @@ export class SceneManager {
             const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.6); // плоскость y = -0.6
             const intersectPoint = new THREE.Vector3();
             if (raycaster.ray.intersectPlane(floorPlane, intersectPoint)) {
-                if (intersectPoint.z < -0.4 && intersectPoint.z > -4.0) {
-                    spawnPos.copy(intersectPoint);
-                }
+                spawnPos.copy(intersectPoint);
+            } else {
+                const dir = new THREE.Vector3();
+                this.camera.getWorldDirection(dir);
+                dir.y = 0;
+                dir.normalize();
+                spawnPos.copy(this.camera.position).addScaledVector(dir, 1.2);
+                spawnPos.y = -0.6;
             }
         }
 
-        // Обновляем позицию прицела на полу
+        // Фиксируем кольцо в мировой точке установки
+        this.placedPos = spawnPos.clone();
         this.reticle.matrix.makeRotationX(-Math.PI / 2);
         this.reticle.matrix.setPosition(spawnPos.x, spawnPos.y, spawnPos.z);
 
         this.onPlaceCallback(spawnPos, spawnRotY);
-        this.info.innerHTML = '✅ Столик установлен на полу! Коснитесь другой точки, чтобы переместить';
+        this.info.innerHTML = '✅ Столик привязан к полу! Поверните телефон, чтобы осмотреть со всех сторон';
     }
 
     onWindowResize() {
@@ -237,10 +289,22 @@ export class SceneManager {
                 }
             }
         } else if (this.isCameraAR) {
-            // iOS камера: кольцо лежит горизонтально на уровне пола
             this.reticle.visible = true;
-            this.reticle.matrix.makeRotationX(-Math.PI / 2);
-            this.reticle.matrix.setPosition(0, -0.6, -1.2);
+            if (!this.placedPos) {
+                // До установки столика: прицел проецируется на пол перед взглядом камеры
+                const dir = new THREE.Vector3();
+                this.camera.getWorldDirection(dir);
+                dir.y = 0;
+                dir.normalize();
+                const floorPos = this.camera.position.clone().addScaledVector(dir, 1.2);
+                floorPos.y = -0.6;
+                this.reticle.matrix.makeRotationX(-Math.PI / 2);
+                this.reticle.matrix.setPosition(floorPos.x, floorPos.y, floorPos.z);
+            } else {
+                // После установки: прицел зафиксирован под столиком
+                this.reticle.matrix.makeRotationX(-Math.PI / 2);
+                this.reticle.matrix.setPosition(this.placedPos.x, this.placedPos.y, this.placedPos.z);
+            }
         }
 
         if (this.onFrameCallback) {

@@ -323,17 +323,28 @@
                 }
             }
 
-            // Fallback для мобильных устройств (iOS Safari)
+            // Fallback для мобильных устройств (iOS Safari / универсальный)
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: { ideal: 'environment' } }
                 });
                 video.srcObject = stream;
+                video.setAttribute('autoplay', '');
+                video.setAttribute('muted', '');
+                video.setAttribute('playsinline', '');
                 video.style.display = 'block';
+                await video.play();
+
+                document.body.style.backgroundColor = 'transparent';
+                renderer.setClearColor(0x000000, 0);
+
+                enterArBtn.textContent = 'AR АКТИВЕН';
+                enterArBtn.style.background = '#16a34a';
                 isCameraAR = true;
-                statusMsg.innerHTML = '📷 Камера активна. Объект зафиксирован в центре экрана (viewer-space).';
+                statusMsg.innerHTML = '📷 Камера активна. Объект зафиксирован в центре поля зрения (viewer-space).';
             } catch (err) {
-                statusMsg.innerHTML = '⚠️ Режим AR недоступен, просмотр в 3D интерактивном режиме.';
+                console.error('Ошибка камеры:', err);
+                statusMsg.innerHTML = '⚠️ Режим AR недоступен: ' + (err.message || 'нет доступа к камере');
             }
         }
 
