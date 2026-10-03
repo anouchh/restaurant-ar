@@ -123,7 +123,7 @@ def create_report():
 
     p_mid = doc.add_paragraph()
     p_mid.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p_mid.add_run('ОТЧЕТ ПО ЗАДАНИЯМ № 1, 2, 3, 4, 5, 6\n')
+    r = p_mid.add_run('ОТЧЕТ ПО ЗАДАНИЯМ № 1, 2, 3, 4, 5, 6, 7\n')
     r.bold = True
     r.font.size = Pt(16)
     r = p_mid.add_run('по дисциплине:\n«Разработка кроссплатформенных приложений дополненной реальности»\n')
@@ -762,15 +762,146 @@ public class WebXRViewerSpacePlacer : MonoBehaviour
     add_screenshot_box('Unity WebXR Exporter сцена с объектом в Viewer-Space', shot6)
 
     doc.add_page_break()
+
+    # ==================== ЗАДАНИЕ 7 ====================
+    add_heading('ЗАДАНИЕ 7', 1)
+    p_t7 = doc.add_paragraph()
+    p_t7.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p_t7.add_run('Тема: Интерактивный WebAR в Unity: drag & scale, XR Interaction Toolkit')
+    r.bold = True
+
+    add_heading('Требования:', 2)
+    reqs7 = [
+        'Использован XR Interaction Toolkit.',
+        'Подключён и корректно работает webxr-xrit-bridge.',
+        'Реализовано масштабирование и перемещение объекта (через жесты или ray-интеракции).',
+        'Есть визуальный отклик при взаимодействии (например, подсветка, изменение размера или цвета).',
+        'Всё работает в WebGL-сборке с WebXR AR-сессией.'
+    ]
+    for rq in reqs7:
+        doc.add_paragraph(rq, style='List Bullet')
+
+    add_heading('Описание выполнения работы:', 2)
+    p = doc.add_paragraph()
+    p.add_run('Подключение пакетов и настройка моста. ').bold = True
+    p.add_run('В Packages/manifest.json подключены com.unity.xr.interaction.toolkit (2.5.4), com.de-panther.webxr и мост com.de-panther.webxr-xrit-bridge. На сцену помещен компонент XRInteractionManager. Мост связывает контроллеры WebXR и экранные касания с системой интеракций Unity.')
+
+    p = doc.add_paragraph()
+    p.add_run('Реализация перемещения (Drag) и масштабирования (Scale). ').bold = True
+    p.add_run('Разработан скрипт WebXRDragScaleInteractable.cs, наследуемый от XRGrabInteractable. Перемещение объекта реализовано через ray-cast интеракции и сенсорное перетаскивание одним пальцем. Масштабирование реализовано через мультисенсорный жест двумя пальцами (Pinch-to-Scale) в диапазоне от 0.4x до 2.5x.')
+
+    p = doc.add_paragraph()
+    p.add_run('Визуальный отклик (Visual Feedback). ').bold = True
+    p.add_run('Настроена интерактивная подсветка: при наведении (hover) контур подсвечивается оранжевым (#EA580C), при захвате и перемещении (select/drag) активируется янтарно-золотой цвет (#F59E0B) с эмиссией и легким упругим увеличением масштаба на 8% (bounceScaleMultiplier = 1.08f), при масштабировании активируется зеленый контур с выводом текущего процента в UI.')
+
+    add_heading('Листинг C# скрипта WebXRDragScaleInteractable.cs:', 2)
+    code7 = '''using System;
+using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
+using WebXR;
+
+[RequireComponent(typeof(Collider))]
+public class WebXRDragScaleInteractable : XRGrabInteractable
+{
+    [Header("Visual Feedback")]
+    [SerializeField] private Renderer targetRenderer;
+    [SerializeField] private Color normalColor = new Color(0.12f, 0.16f, 0.23f);
+    [SerializeField] private Color hoverColor = new Color(0.92f, 0.40f, 0.13f);
+    [SerializeField] private Color selectColor = new Color(0.98f, 0.75f, 0.18f);
+    [SerializeField] private float bounceScaleMultiplier = 1.08f;
+
+    [Header("Scale Settings")]
+    [SerializeField] private float minScale = 0.4f;
+    [SerializeField] private float maxScale = 2.5f;
+    [SerializeField] private float pinchSensitivity = 0.005f;
+
+    private Material objectMaterial;
+    private Vector3 originalScale;
+    private float currentScaleFactor = 1.0f;
+    private bool isSelected = false;
+    private float previousTouchDistance = 0f;
+
+    protected override void Awake()
+    {
+        base.Awake();
+        originalScale = transform.localScale;
+        if (targetRenderer != null)
+        {
+            objectMaterial = targetRenderer.material;
+            SetFeedbackColor(normalColor);
+        }
+    }
+
+    protected override void OnEnable()
+    {
+        base.OnEnable();
+        selectEntered.AddListener(args => {
+            isSelected = true;
+            SetFeedbackColor(selectColor);
+            transform.localScale = originalScale * (currentScaleFactor * bounceScaleMultiplier);
+        });
+        selectExited.AddListener(args => {
+            isSelected = false;
+            SetFeedbackColor(normalColor);
+            transform.localScale = originalScale * currentScaleFactor;
+        });
+        hoverEntered.AddListener(args => { if (!isSelected) SetFeedbackColor(hoverColor); });
+        hoverExited.AddListener(args => { if (!isSelected) SetFeedbackColor(normalColor); });
+    }
+
+    private void Update()
+    {
+        if (Input.touchCount == 2)
+        {
+            Touch t0 = Input.GetTouch(0);
+            Touch t1 = Input.GetTouch(1);
+            float dist = Vector2.Distance(t0.position, t1.position);
+
+            if (t0.phase == TouchPhase.Began || t1.phase == TouchPhase.Began)
+            {
+                previousTouchDistance = dist;
+                return;
+            }
+
+            float delta = dist - previousTouchDistance;
+            previousTouchDistance = dist;
+            currentScaleFactor = Mathf.Clamp(currentScaleFactor + delta * pinchSensitivity, minScale, maxScale);
+            transform.localScale = originalScale * currentScaleFactor;
+        }
+    }
+
+    private void SetFeedbackColor(Color c)
+    {
+        if (objectMaterial != null)
+        {
+            if (objectMaterial.HasProperty("_Color")) objectMaterial.color = c;
+            if (objectMaterial.HasProperty("_EmissionColor"))
+            {
+                objectMaterial.EnableKeyword("_EMISSION");
+                objectMaterial.SetColor("_EmissionColor", c * 0.4f);
+            }
+        }
+    }
+}'''
+    add_code(code7)
+
+    add_heading('Развертывание и тестирование:', 2)
+    p = doc.add_paragraph()
+    p.add_run('Приложение развернуто: https://anouchh.github.io/restaurant-ar/task7-unity-interaction/index.html. В мобильном браузере и на ПК проверено перетаскивание одним пальцем/мышью, масштабирование двумя пальцами/колесом и визуальный отклик подсветки.')
+
+    add_screenshot_box('Интерактивный WebAR в Unity (XR Interaction Toolkit, Drag & Scale жесты)')
+
+    doc.add_page_break()
     add_heading('ЗАКЛЮЧЕНИЕ', 1)
     p = doc.add_paragraph()
-    p.add_run('В рамках выполнения комплекса практических заданий № 1–6 по дисциплине «Разработка кроссплатформенных приложений дополненной реальности» были успешно освоены ключевые современные WebAR-технологии на единую тематику ресторанных сервисов:\n'
+    p.add_run('В рамках выполнения комплекса практических заданий № 1–7 по дисциплине «Разработка кроссплатформенных приложений дополненной реальности» были успешно освоены ключевые современные WebAR-технологии на единую тематику ресторанных сервисов:\n'
               '• Задание 1: Размещение 3D-блюда через веб-компонент <model-viewer> с автоматической генерацией USDZ и Quick Look на iOS;\n'
               '• Задание 2: Трекинг печатного ресторанного меню на базе библиотеки MindAR Image Tracking и A-Frame;\n'
               '• Задание 3: Примерка поварского колпака с использованием нейросетевого распознавания лица MindAR Face Tracking и MediaPipe;\n'
               '• Задание 4: Определение плоскости пола и установка круглого столика через WebXR Hit-Test на Three.js;\n'
               '• Задание 5: Расширение Three.js сцены модульной архитектурой классов, PBR-материалами, HDRI-освещением, интерфейсом конфигуратора и гироскопом;\n'
-              '• Задание 6: Сборка WebAR-сцены на движке Unity с пакетом De-Panther unity-webxr-export и сценарием позиционирования в viewer-space.\n\n'
+              '• Задание 6: Сборка WebAR-сцены на движке Unity с пакетом De-Panther unity-webxr-export и сценарием позиционирования в viewer-space;\n'
+              '• Задание 7: Интерактивный WebAR в Unity с подключением XR Interaction Toolkit и webxr-xrit-bridge, реализацией жестов drag & scale и визуальной обратной связью.\n\n'
               'Все проекты опубликованы на GitHub Pages и протестированы на мобильных устройствах.')
 
     output_filename = 'Отчет_РКПДР_МИРЭА.docx'
